@@ -183,6 +183,8 @@ class HybridAgent:
                 "don't have access",
                 "do not have access",
                 "no relevant cloud documents",
+                "no relevant documents found in the cloud vector store",
+                "ingest the document into the cloud store",
                 "as an ai, i am not equipped",
                 "no patient data provided",
                 "need the following details",
@@ -199,7 +201,7 @@ class HybridAgent:
             # Keep the cloud answer primary and expose the fast local result
             # as a preview, as specified by the project report.
             if local.ok and local_text and local_text.strip() != cloud_text:
-                merged_text = f"{cloud_text}\\n\\n---\\nLocal fast preview ({local.latency_seconds * 1000:.2f} ms):\\n{local_text}"
+                merged_text = f"{cloud_text}\n\n---\nLocal fast preview ({local.latency_seconds * 1000:.2f} ms):\n{local_text}"
             else:
                 merged_text = cloud_text
         elif local.ok and local_text:
