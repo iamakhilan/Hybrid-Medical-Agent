@@ -137,10 +137,17 @@ async def upload_document(
     into the cloud vector store (semantic search).
     """
     agent = get_agent()
+    filename = file.filename or "upload.txt"
+    if Path(filename).suffix.lower() not in {".pdf", ".txt", ".md"}:
+        raise HTTPException(status_code=415, detail="Supported file types are PDF, TXT, and MD.")
+
     file_bytes = await file.read()
+    max_upload_bytes = 20 * 1024 * 1024
+    if len(file_bytes) > max_upload_bytes:
+        raise HTTPException(status_code=413, detail="File exceeds the 20 MB upload limit.")
 
     try:
-        text = extract_text(file.filename or "upload.txt", file_bytes)
+        text = extract_text(filename, file_bytes)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
 
