@@ -113,8 +113,16 @@ async def ask(req: AskRequest):
     """Ask a clinical question. Fires local + cloud in parallel and returns the merged answer."""
     agent = get_agent()
     response = await agent.ask(req.question, top_k=req.top_k)
-    raw_citations = await agent.search_cloud_sources(req.question, top_k=req.top_k)
-    local_citations = await agent.search_local_sources(req.question, top_k=req.top_k)
+    # Citation lookup is best-effort: a search adapter failure must not turn
+    # an otherwise successful Q&A request into a generic HTTP 500.
+    try:
+        raw_citations = await agent.search_cloud_sources(req.question, top_k=req.top_k)
+    except Exception:
+        raw_citations = []
+    try:
+        local_citations = await agent.search_local_sources(req.question, top_k=req.top_k)
+    except Exception:
+        local_citations = []
     all_citations = raw_citations + local_citations
     citations = []
     seen_citations = set()
@@ -199,9 +207,9 @@ async def ask(req: AskRequest):
     # that retrieval debug text as if it were a clinical answer.
     answer_text = response.merged_text.strip()
     looks_like_retrieval_dump = (
-        re.search(r"(?i)^based on \\d+ cached local document", answer_text) is not None
+        re.search(r"(?i)^based on \d+ cached local document", answer_text) is not None
         or ("cached local document" in answer_text.lower()
-            and re.search(r"(?m)^-\\s*\\[", answer_text) is not None)
+            and re.search(r"(?m)^-\s*\[", answer_text) is not None)
     )
     if looks_like_retrieval_dump:
         if citations:
