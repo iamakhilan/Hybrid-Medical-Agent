@@ -60,6 +60,49 @@ def ensure_collection(vector_size: int = config.GEMINI_EMBEDDING_DIM) -> None:
         )
 
 
+def delete_document_chunks(doc_id: str) -> None:
+    """Delete every cloud chunk for a document, if its collection exists."""
+    from qdrant_client.models import Filter, FieldCondition, MatchValue
+
+    client = _get_client()
+    if not client.collection_exists(config.QDRANT_COLLECTION):
+        return
+
+    client.delete(
+        collection_name=config.QDRANT_COLLECTION,
+        points_selector=Filter(
+            must=[
+                FieldCondition(
+                    key="doc_id",
+                    match=MatchValue(value=doc_id),
+                )
+            ]
+        ),
+    )
+
+
+def _delete_obsolete_chunks(doc_id: str, first_obsolete_index: int) -> None:
+    """Remove chunks at or above the first index absent from the new version."""
+    from qdrant_client.models import Filter, FieldCondition, MatchValue, Range
+
+    client = _get_client()
+    client.delete(
+        collection_name=config.QDRANT_COLLECTION,
+        points_selector=Filter(
+            must=[
+                FieldCondition(
+                    key="doc_id",
+                    match=MatchValue(value=doc_id),
+                ),
+                FieldCondition(
+                    key="chunk_index",
+                    range=Range(gte=first_obsolete_index),
+                ),
+            ]
+        ),
+    )
+
+
 def upsert_chunks(chunks_with_vectors: list[tuple[Chunk, list[float]]]) -> int:
     from qdrant_client.models import PointStruct
 
@@ -83,7 +126,19 @@ def upsert_chunks(chunks_with_vectors: list[tuple[Chunk, list[float]]]) -> int:
         )
         for chunk, vector in chunks_with_vectors
     ]
+
+    # Upsert first. Only after the replacement chunks succeed do we delete
+    # chunks beyond the end of each new document version.
     client.upsert(collection_name=config.QDRANT_COLLECTION, points=points)
+
+    chunks_by_doc: dict[str, list[Chunk]] = {}
+    for chunk, _vector in chunks_with_vectors:
+        chunks_by_doc.setdefault(chunk.doc_id, []).append(chunk)
+
+    for doc_id, doc_chunks in chunks_by_doc.items():
+        first_obsolete_index = max(chunk.chunk_index for chunk in doc_chunks) + 1
+        _delete_obsolete_chunks(doc_id, first_obsolete_index)
+
     return len(points)
 
 
