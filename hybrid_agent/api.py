@@ -78,9 +78,14 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    # The UI is served by this same FastAPI origin. Keep the default CORS
+    # allowlist local-only rather than exposing the API to arbitrary sites.
+    allow_origins=[
+        "http://127.0.0.1:7860",
+        "http://localhost:7860",
+    ],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
 )
 
 # ---------------------------------------------------------------------------
