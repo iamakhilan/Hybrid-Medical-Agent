@@ -134,19 +134,9 @@ def answer_with_cloud_context(question: str, top_k: int = config.DEFAULT_TOP_K) 
         context_chunks = []
 
     if not context_chunks:
-        try:
-            from local_mcp_server import db as local_db
-            local_hits = local_db.search(question, top_k=top_k)
-            if local_hits:
-                context_chunks = [f"[{h.title}]\n{h.snippet}" for h in local_hits]
-            else:
-                docs = local_db.list_documents(limit=2)
-                for d_info in docs:
-                    full_doc = local_db.get_document(d_info["doc_id"])
-                    if full_doc and full_doc.get("content"):
-                        context_chunks.append(f"[{full_doc['title']}]\n{full_doc['content'][:4000]}")
-        except Exception:
-            pass
+        # Keep the cloud server independent of the edge cache. The hybrid
+        # agent is the only MCP client and chooses the response tier.
+        return "No relevant documents found in the cloud vector store. Ingest the document into the cloud store or use the local cache result."
 
     return gemini_service.reason_over_context(question, context_chunks)
 
