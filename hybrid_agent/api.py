@@ -141,8 +141,18 @@ async def upload_document(
     if Path(filename).suffix.lower() not in {".pdf", ".txt", ".md"}:
         raise HTTPException(status_code=415, detail="Supported file types are PDF, TXT, and MD.")
 
-    file_bytes = await file.read()
     max_upload_bytes = 20 * 1024 * 1024
+    # Read in bounded chunks and stop as soon as the upload exceeds the limit.
+    # This avoids loading an arbitrarily large upload into application memory.
+    file_bytes = bytearray()
+    read_chunk_size = 1024 * 1024
+    while len(file_bytes) <= max_upload_bytes:
+        remaining = max_upload_bytes + 1 - len(file_bytes)
+        chunk = await file.read(min(read_chunk_size, remaining))
+        if not chunk:
+            break
+        file_bytes.extend(chunk)
+
     if len(file_bytes) > max_upload_bytes:
         raise HTTPException(status_code=413, detail="File exceeds the 20 MB upload limit.")
 
