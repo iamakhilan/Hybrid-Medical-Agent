@@ -194,6 +194,14 @@ function addMessage(role, content, meta = null) {
          </span>`
       : '';
 
+    // Guard the UI against older backend processes that still return the
+    // local retriever's document-preview dump as the "answer".
+    const retrievalDump = /^\\s*based on \\d+ cached local document/i.test(String(content || ''))
+      || /^\\s*based on \\d+ cached local document/i.test(String(content || '').replace(/\\(s\\)|s:/gi, ''));
+    const displayContent = retrievalDump
+      ? 'The search returned document-preview snippets instead of a reliable answer. Check the supporting evidence below; if no passages are listed, restart the app with the latest backend code and try again.'
+      : content;
+
     const rawCitations = Array.isArray(meta?.citations) ? meta.citations : [];
     const citationSeen = new Set();
     const citations = rawCitations.filter(citation => {
@@ -216,7 +224,7 @@ function addMessage(role, content, meta = null) {
           </details>`).join('')}
       </section>` : '<section class="evidence-list evidence-empty"><h4>Supporting evidence unavailable</h4><p>The retrieval system did not return a source passage for this answer. Treat the response as unverified and check the original document before relying on it.</p></section>';
     el.innerHTML = `
-      <div class="msg-bubble">${renderMarkdownLite(content)}</div>
+      <div class="msg-bubble">${renderMarkdownLite(displayContent)}</div>
       <div class="msg-meta">${sourceBadge}${latency}</div>
       ${citationHtml}
     `;
