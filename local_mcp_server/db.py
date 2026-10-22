@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS documents (
     doc_id      TEXT PRIMARY KEY,
     title       TEXT NOT NULL,
     content     TEXT NOT NULL,
+    page_content TEXT NOT NULL DEFAULT '',
     source      TEXT NOT NULL DEFAULT 'local',
     created_at  REAL NOT NULL
 );
@@ -85,27 +86,31 @@ def get_connection() -> Iterator[sqlite3.Connection]:
 def init_db() -> None:
     with get_connection() as conn:
         conn.executescript(_SCHEMA)
+        columns = {row["name"] for row in conn.execute("PRAGMA table_info(documents)")}
+        if "page_content" not in columns:
+            conn.execute("ALTER TABLE documents ADD COLUMN page_content TEXT NOT NULL DEFAULT ''")
 
 
-def upsert_document(doc_id: str, title: str, content: str, source: str = "local") -> None:
+def upsert_document(doc_id: str, title: str, content: str, source: str = "local", page_content: str = "") -> None:
     with get_connection() as conn:
         conn.execute(
             """
-            INSERT INTO documents (doc_id, title, content, source, created_at)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO documents (doc_id, title, content, page_content, source, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
             ON CONFLICT(doc_id) DO UPDATE SET
                 title = excluded.title,
                 content = excluded.content,
+                page_content = excluded.page_content,
                 source = excluded.source
             """,
-            (doc_id, title, content, source, time.time()),
+            (doc_id, title, content, page_content, source, time.time()),
         )
 
 
 def get_document(doc_id: str) -> dict | None:
     with get_connection() as conn:
         row = conn.execute(
-            "SELECT doc_id, title, content, source, created_at FROM documents WHERE doc_id = ?",
+            "SELECT doc_id, title, content, page_content, source, created_at FROM documents WHERE doc_id = ?",
             (doc_id,),
         ).fetchone()
         return dict(row) if row else None

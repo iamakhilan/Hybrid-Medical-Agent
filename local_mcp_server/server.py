@@ -39,12 +39,12 @@ def local_health_check() -> str:
 
 
 @mcp.tool()
-def cache_document(doc_id: str, title: str, content: str, source: str = "local") -> str:
+def cache_document(doc_id: str, title: str, content: str, source: str = "local", page_content: str = "") -> str:
     """Store or update a document's text in the local cache so it becomes
     instantly searchable offline. `source` is a free-text label, e.g.
     'local' for something typed/scanned locally, or 'cloud-sync' for text
     that was pulled down after a deep cloud extraction."""
-    db.upsert_document(doc_id=doc_id, title=title, content=content, source=source)
+    db.upsert_document(doc_id=doc_id, title=title, content=content, source=source, page_content=page_content)
     return f"Cached document '{doc_id}' ({len(content)} chars) under source='{source}'."
 
 
@@ -80,6 +80,15 @@ def get_cached_document(doc_id: str) -> str:
     if doc is None:
         raise ValueError(f"Cached document '{doc_id}' was not found.")
     return doc["content"]
+
+
+@mcp.tool()
+def get_cached_document_page_text(doc_id: str) -> str:
+    """Return page-marked text for evidence and timeline extraction."""
+    doc = db.get_document(doc_id)
+    if doc is None:
+        raise ValueError(f"Cached document '{doc_id}' was not found.")
+    return doc.get("page_content") or doc["content"]
 
 
 @mcp.resource("cache://docs/{doc_id}")

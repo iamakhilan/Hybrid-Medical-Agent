@@ -220,9 +220,9 @@ class HybridAgent:
 
         return MergedResponse(query=question, local=local, cloud=cloud, used_cloud=used_cloud, merged_text=merged_text)
 
-    async def cache_document_locally(self, doc_id: str, title: str, content: str, source: str = "local") -> SourceResult:
+    async def cache_document_locally(self, doc_id: str, title: str, content: str, source: str = "local", page_content: str = "") -> SourceResult:
         return await self._call_local(
-            "cache_document", {"doc_id": doc_id, "title": title, "content": content, "source": source}
+            "cache_document", {"doc_id": doc_id, "title": title, "content": content, "source": source, "page_content": page_content}
         )
 
     async def ingest_document_to_cloud(self, doc_id: str, title: str, text: str) -> SourceResult:
@@ -244,6 +244,19 @@ class HybridAgent:
     async def get_cached_document(self, doc_id: str) -> SourceResult:
         """Fetch document text through MCP rather than accessing SQLite directly."""
         return await self._call_local("get_cached_document", {"doc_id": doc_id})
+
+    async def get_cached_document_page_text(self, doc_id: str) -> SourceResult:
+        return await self._call_local("get_cached_document_page_text", {"doc_id": doc_id})
+
+    async def search_cloud_sources(self, query: str, top_k: int = 5) -> list[dict]:
+        result = await self._call_cloud("search_cloud_documents", {"query": query, "top_k": top_k})
+        if not result.ok or not result.text.strip():
+            return []
+        try:
+            payload = json.loads(result.text)
+            return payload if isinstance(payload, list) else []
+        except (json.JSONDecodeError, TypeError):
+            return []
 
     async def health_check(self) -> tuple[SourceResult, SourceResult]:
         local = await self._call_local("local_health_check", {})
