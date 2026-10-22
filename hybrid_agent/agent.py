@@ -19,6 +19,7 @@ server must already be running separately -- see cloud_mcp_server/server.py)
 from __future__ import annotations
 
 import asyncio
+import json
 import time
 from contextlib import AsyncExitStack
 from dataclasses import dataclass, field
@@ -228,6 +229,21 @@ class HybridAgent:
         return await self._call_cloud(
             "ingest_document", {"doc_id": doc_id, "title": title, "text": text}, timeout=45.0
         )
+
+    async def list_cached_documents(self, limit: int = 50) -> list[dict]:
+        """List local document metadata through the local MCP server."""
+        result = await self._call_local("list_cached_documents", {"limit": limit})
+        if not result.ok:
+            return []
+        try:
+            payload = json.loads(result.text)
+            return payload if isinstance(payload, list) else []
+        except (json.JSONDecodeError, TypeError):
+            return []
+
+    async def get_cached_document(self, doc_id: str) -> SourceResult:
+        """Fetch document text through MCP rather than accessing SQLite directly."""
+        return await self._call_local("get_cached_document", {"doc_id": doc_id})
 
     async def health_check(self) -> tuple[SourceResult, SourceResult]:
         local = await self._call_local("local_health_check", {})
