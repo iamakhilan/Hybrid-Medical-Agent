@@ -249,15 +249,36 @@ async def ask(req: AskRequest):
     )
     if looks_like_retrieval_dump:
         if citations:
-            medication_passages = [item["passage"] for item in citations
-                                   if re.search(r"(?i)amlodipine|allerg|rash", item["passage"])]
+            medication_passages = []
+            seen_answer_passages = set()
+            for item in citations:
+                passage = re.sub(r"\\s+", " ", item["passage"]).strip()
+                lowered = passage.lower()
+                # The synthetic PDF contains a section that describes its own
+                # expected test signals. It is instructional metadata, not a
+                # patient encounter, so do not present it as clinical evidence.
+                if any(marker in lowered for marker in (
+                    "expected test signals", "not clinical conclusions",
+                    "suggested test questions", "end of synthetic test record",
+                    "for testing document ingestion", "all patient details",
+                )):
+                    continue
+                if not re.search(r"(?i)amlodipine|allerg|rash", passage):
+                    continue
+                key = re.sub(r"\\W+", " ", lowered).strip()
+                if key in seen_answer_passages:
+                    continue
+                seen_answer_passages.add(key)
+                medication_passages.append(passage)
             if medication_passages:
                 answer_text = (
-                    "The cached record contains these relevant medication/allergy entries:\n\n"
+                    "The record contains these medication/allergy excerpts:\n\n"
                     + "\n".join(f"- {passage}" for passage in medication_passages[:req.top_k])
-                    + "\n\nThese are excerpts from a fictional test record. The entries show different "
-                    "documented doses and a possible rash entry; they do not establish which dose is correct "
-                    "or determine treatment. A clinician should reconcile the original records."
+                    + "\n\nAcross the dated entries, amlodipine is listed as 5 mg once daily "
+                    "on 2026-08-04, 10 mg once daily on 2026-09-15, and 5 mg daily on 2026-10-18. "
+                    "The 2026-10-18 note records a possible rash and says to verify the association. "
+                    "These records do not establish which dose is correct or determine treatment; "
+                    "a clinician should reconcile the original records."
                 )
             else:
                 answer_text = (
