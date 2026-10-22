@@ -1507,3 +1507,7 @@ body {
   .evidence-card summary { align-items: flex-start; flex-wrap: wrap; }
   .evidence-page { margin-left: 30px; }
 }
+
+.source-open-link, .record-source-link a { color: var(--accent-strong); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+.source-open-link:hover, .record-source-link a:hover { color: var(--accent); }
+.record-source-link { padding: 0 12px 10px; font-size: 11px; }

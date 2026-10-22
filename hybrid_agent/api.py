@@ -68,6 +68,9 @@ def get_agent() -> HybridAgent:
 # App
 # ---------------------------------------------------------------------------
 
+_SOURCE_DIR = Path(os.environ.get("LOCAL_DB_PATH") or (Path(__file__).parent.parent / "local_mcp_server" / "local_cache.db")).expanduser().resolve().parent / "source_files"
+
+
 app = FastAPI(
     title="Hybrid Medical Agent API",
     description="REST interface for the local+cloud hybrid medical document agent.",
@@ -184,6 +187,16 @@ async def upload_document(
     doc_id = safe_name
     doc_title = title.strip() or Path(file.filename or "Untitled").stem
 
+    # Keep the original upload locally so evidence citations can open the source.
+    # This folder stays alongside the local cache and is not served as a directory.
+    _SOURCE_DIR.mkdir(parents=True, exist_ok=True)
+    suffix = Path(filename).suffix.lower()
+    for old_suffix in {".pdf", ".txt", ".md"} - {suffix}:
+        old_source = _SOURCE_DIR / f"{doc_id}{old_suffix}"
+        if old_source.exists():
+            old_source.unlink()
+    (_SOURCE_DIR / f"{doc_id}{suffix}").write_bytes(bytes(file_bytes))
+
     # Cache locally (always)
     local_res = await agent.cache_document_locally(
         doc_id=doc_id, title=doc_title, content=text, page_content=page_content
@@ -241,6 +254,22 @@ async def clinical_safety_check():
         if result.ok:
             sources.append({"doc_id": doc["doc_id"], "title": doc["title"], "text": result.text})
     return {"findings": detect_contradictions(sources), "document_count": len(sources)}
+
+
+@app.get("/api/documents/{doc_id}/source", tags=["Documents"])
+async def open_document_source(doc_id: str):
+    """Open the original uploaded file, or extracted text for legacy cached records."""
+    if not re.fullmatch(r"[A-Za-z0-9_-]+", doc_id):
+        raise HTTPException(status_code=400, detail="Invalid document identifier.")
+    for suffix, media_type in ((".pdf", "application/pdf"), (".txt", "text/plain; charset=utf-8"), (".md", "text/markdown; charset=utf-8")):
+        source_path = _SOURCE_DIR / f"{doc_id}{suffix}"
+        if source_path.is_file():
+            return FileResponse(str(source_path), media_type=media_type, headers={"Cache-Control": "no-store"})
+    result = await get_agent().get_cached_document(doc_id)
+    if not result.ok:
+        raise HTTPException(status_code=404, detail="Source document is not available in the local cache.")
+    from fastapi.responses import PlainTextResponse
+    return PlainTextResponse(result.text, headers={"Cache-Control": "no-store"})
 
 
 @app.post("/api/summarize", response_model=TextResponse, tags=["Analysis"])

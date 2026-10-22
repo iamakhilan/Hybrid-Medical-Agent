@@ -202,7 +202,7 @@ function addMessage(role, content, meta = null) {
           <details class="evidence-card">
             <summary><span class="evidence-index">${index + 1}</span><span class="evidence-source">${escHtml(citation.title || 'Source document')}</span><span class="evidence-page">${citation.page_number ? 'Page ' + escHtml(citation.page_number) : 'Page unavailable'}</span></summary>
             <blockquote>${escHtml(citation.passage || '')}</blockquote>
-            <small>Chunk ${escHtml(citation.chunk_index ?? '—')} · Retrieved passage; verify against the original record.</small>
+            <small><a class="source-open-link" href="/api/documents/${encodeURIComponent(citation.doc_id || '')}/source${citation.page_number ? '#page=' + encodeURIComponent(citation.page_number) : ''}" target="_blank" rel="noopener noreferrer">Open source document${citation.page_number ? ' at page ' + escHtml(citation.page_number) : ''}</a> · Chunk ${escHtml(citation.chunk_index ?? '—')} · Verify against the original record.</small>
           </details>`).join('')}
       </section>` : '<p class="evidence-unavailable">No retrieved source passages were returned for this answer. Verify details against the original records.</p>';
     el.innerHTML = `
@@ -697,7 +697,8 @@ function sourceLine(item) {
   return `${escHtml(item.source_title || item.title || item.doc_id || 'Source record')}${item.page_number ? ' · Page ' + escHtml(item.page_number) : ' · Page not available'}`;
 }
 function renderSourcePassage(item) {
-  return `<details class="record-source"><summary>${sourceLine(item)}</summary><blockquote>${escHtml(item.passage || item.description || '')}</blockquote></details>`;
+  const sourceUrl = `/api/documents/${encodeURIComponent(item.doc_id || '')}/source${item.page_number ? '#page=' + encodeURIComponent(item.page_number) : ''}`;
+  return `<details class="record-source"><summary>${sourceLine(item)}</summary><blockquote>${escHtml(item.passage || item.description || '')}</blockquote><p class="record-source-link"><a href="${sourceUrl}" target="_blank" rel="noopener noreferrer">Open source record${item.page_number ? ' at page ' + escHtml(item.page_number) : ''}</a></p></details>`;
 }
 timelineButton?.addEventListener('click', async () => {
   timelineButton.disabled = true;
@@ -712,7 +713,7 @@ timelineButton?.addEventListener('click', async () => {
       return;
     }
     timelineResults.innerHTML = `<h3>Medical timeline <span>${data.events.length} events · ${data.document_count} records</span></h3><ol class="medical-timeline">${data.events.map(event => `
-      <li class="timeline-event"><div class="timeline-event-top"><time>${escHtml(event.date)}</time><span class="timeline-category">${escHtml(event.category)}</span></div><p>${escHtml(event.description)}</p>${renderSourcePassage({source_title:event.source_title,page_number:event.page_number,description:event.description})}</li>`).join('')}</ol>`;
+      <li class="timeline-event"><div class="timeline-event-top"><time>${escHtml(event.date)}</time><span class="timeline-category">${escHtml(event.category)}</span></div><p>${escHtml(event.description)}</p>${renderSourcePassage({doc_id:event.doc_id,source_title:event.source_title,page_number:event.page_number,description:event.description})}</li>`).join('')}</ol>`;
   } catch (error) {
     timelineResults.innerHTML = `<p class="record-error">${escHtml(error.message || 'Timeline request failed.')}</p>`;
   } finally {
