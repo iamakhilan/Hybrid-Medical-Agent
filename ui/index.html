@@ -29,7 +29,7 @@
     <nav class="sidebar-nav">
       <span class="nav-label">Workspace</span>
 
-      <button class="nav-btn active" data-panel="chat" id="nav-chat" aria-label="Chat panel">
+      <button class="nav-btn active" data-panel="chat" id="nav-chat">
         <span class="nav-icon">
           <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
             <path d="M4 4h16v12H8l-4 4V4Z" />
@@ -38,7 +38,7 @@
         Clinical Q&amp;A
       </button>
 
-      <button class="nav-btn" data-panel="docs" id="nav-docs" aria-label="Documents panel">
+      <button class="nav-btn" data-panel="docs" id="nav-docs">
         <span class="nav-icon">
           <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
             <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" />
@@ -47,7 +47,7 @@
         Documents
       </button>
 
-      <button class="nav-btn" data-panel="analyze" id="nav-analyze" aria-label="Analyze panel">
+      <button class="nav-btn" data-panel="analyze" id="nav-analyze">
         <span class="nav-icon">
           <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
             <path d="M9 2.5h6M10 2.5v5.7L4.8 18.4A2 2 0 0 0 6.6 21h10.8a2 2 0 0 0 1.8-2.6L14 8.2V2.5" />
@@ -82,13 +82,13 @@
     <!-- Top bar -->
     <div class="topbar">
       <div>
-        <div class="topbar-title" id="topbar-title">Clinical Q&amp;A</div>
-        <div class="topbar-sub" id="topbar-sub">Ask questions about your patient documents</div>
+        <h1 class="topbar-title" id="topbar-title">Clinical Q&amp;A</h1>
+        <p class="topbar-sub" id="topbar-sub">Ask questions about your patient documents</p>
       </div>
     </div>
 
     <!-- ========== CHAT PANEL ========== -->
-    <section class="panel active" id="panel-chat" aria-label="Chat panel">
+    <section class="panel active" id="panel-chat">
 
       <div class="chat-messages" id="chat-messages">
         <div class="chat-empty">
@@ -99,10 +99,10 @@
           </div>
           <p>Ask any clinical question about your patient documents. Answers come from your local cache and the cloud, at the same time.</p>
           <div class="suggestion-chips">
-            <span class="chip">What are the latest lab values?</span>
-            <span class="chip">Summarise the diagnosis history</span>
-            <span class="chip">What medications is the patient on?</span>
-            <span class="chip">Are there any abnormal findings?</span>
+            <button type="button" class="chip">What are the latest lab values?</span>
+            <button type="button" class="chip">Summarise the diagnosis history</span>
+            <button type="button" class="chip">What medications is the patient on?</span>
+            <button type="button" class="chip">Are there any abnormal findings?</button>
           </div>
         </div>
       </div>
@@ -127,7 +127,7 @@
     </section>
 
     <!-- ========== DOCUMENTS PANEL ========== -->
-    <section class="panel" id="panel-docs" aria-label="Documents panel">
+    <section class="panel" id="panel-docs">
       <div class="docs-panel-inner">
 
         <!-- Upload zone -->
