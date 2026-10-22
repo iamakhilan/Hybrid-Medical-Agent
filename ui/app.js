@@ -194,17 +194,27 @@ function addMessage(role, content, meta = null) {
          </span>`
       : '';
 
-    const citations = Array.isArray(meta?.citations) ? meta.citations : [];
+    const rawCitations = Array.isArray(meta?.citations) ? meta.citations : [];
+    const citationSeen = new Set();
+    const citations = rawCitations.filter(citation => {
+      const passage = String(citation.passage || '').trim();
+      if (!passage || !citation.doc_id) return false;
+      const key = String(citation.doc_id).toLowerCase() + '|' + passage.toLowerCase().replace(/\\s+/g, ' ').slice(0, 220);
+      if (citationSeen.has(key)) return false;
+      citationSeen.add(key);
+      return true;
+    });
     const citationHtml = citations.length ? `
-      <section class="evidence-list" aria-label="Retrieved source evidence">
-        <h4>Retrieved evidence <span>${citations.length} source chunks</span></h4>
+      <section class="evidence-list" aria-label="Supporting source evidence">
+        <h4>Supporting evidence <span>${citations.length} passages</span></h4>
+        <p class="evidence-intro">These passages were retrieved from your cached records. Open a passage to inspect the exact text.</p>
         ${citations.map((citation, index) => `
-          <details class="evidence-card">
-            <summary><span class="evidence-index">${index + 1}</span><span class="evidence-source">${escHtml(citation.title || 'Source document')}</span><span class="evidence-page">${citation.page_number ? 'Page ' + escHtml(citation.page_number) : 'Page unavailable'}</span></summary>
-            <blockquote>${escHtml(citation.passage || '')}</blockquote>
-            <small><a class="source-open-link" href="/api/documents/${encodeURIComponent(citation.doc_id || '')}/source${citation.page_number ? '#page=' + encodeURIComponent(citation.page_number) : ''}" target="_blank" rel="noopener noreferrer">Open source document${citation.page_number ? ' at page ' + escHtml(citation.page_number) : ''}</a> · Chunk ${escHtml(citation.chunk_index ?? '—')} · Verify against the original record.</small>
+          <details class="evidence-card" ${index === 0 ? 'open' : ''}>
+            <summary><span class="evidence-index">${index + 1}</span><span class="evidence-source">${escHtml(citation.title || 'Source document')}</span><span class="evidence-page">${citation.page_number ? 'Page ' + escHtml(citation.page_number) : 'Page not identified'}</span></summary>
+            <blockquote>${escHtml(citation.passage)}</blockquote>
+            <small><a class="source-open-link" href="/api/documents/${encodeURIComponent(citation.doc_id)}${citation.page_number ? '/source#page=' + encodeURIComponent(citation.page_number) : '/source'}" target="_blank" rel="noopener noreferrer">Open original source</a><span> · Page numbers are shown only when available in the extracted evidence.</span></small>
           </details>`).join('')}
-      </section>` : '<p class="evidence-unavailable">No retrieved source passages were returned for this answer. Verify details against the original records.</p>';
+      </section>` : '<section class="evidence-list evidence-empty"><h4>Supporting evidence unavailable</h4><p>The retrieval system did not return a source passage for this answer. Treat the response as unverified and check the original document before relying on it.</p></section>';
     el.innerHTML = `
       <div class="msg-bubble">${renderMarkdownLite(content)}</div>
       <div class="msg-meta">${sourceBadge}${latency}</div>
