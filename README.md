@@ -85,24 +85,24 @@ The included **MedAgent web UI** provides a workspace for clinical Q&A, document
 
 ```mermaid
 flowchart TD
-    U[Clinician / User] --> UI[MedAgent Web UI]
-    UI --> API[FastAPI API<br/>Port 7860]
-    API --> H[Hybrid Agent / MCP Client]
+    U["Clinician / User"] --> UI["MedAgent Web UI"]
+    UI --> API["FastAPI API — Port 7860"]
+    API --> H["Hybrid Agent / MCP Client"]
 
-    H -->|stdio| L[Local MCP Server]
-    H -->|Streamable HTTP| C[Cloud MCP Server<br/>Port 8000]
+    H -->|stdio| L["Local MCP Server"]
+    H -->|Streamable HTTP| C["Cloud MCP Server — Port 8000"]
 
-    L --> DB[(SQLite + FTS5)]
-    L -. optional .-> O[Ollama / GGUF Model]
+    L --> DB[("SQLite + FTS5")]
+    L -. optional .-> O["Ollama / GGUF Model"]
 
-    C --> G[Google Gemini]
-    C --> Q[(Qdrant Vector Database)]
+    C --> G["Google Gemini"]
+    C --> Q[("Qdrant Vector Database")]
 
-    DB --> R[Local Retrieval Result]
+    DB --> R["Local Retrieval Result"]
     O --> R
-    G --> S[Cloud-grounded Analysis]
+    G --> S["Cloud-grounded Analysis"]
     Q --> S
-    R --> M[Hybrid Response Selection]
+    R --> M["Hybrid Response Selection"]
     S --> M
     M --> API
     API --> UI
