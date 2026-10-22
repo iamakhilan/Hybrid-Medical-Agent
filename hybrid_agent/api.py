@@ -40,7 +40,6 @@ from hybrid_agent.api_models import (
     TextResponse,
 )
 from hybrid_agent.pdf_utils import extract_text
-from local_mcp_server import db as local_db
 
 # ---------------------------------------------------------------------------
 # Application lifecycle — one HybridAgent for the entire server lifetime
@@ -52,7 +51,6 @@ _agent: HybridAgent | None = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global _agent
-    local_db.init_db()  # make sure the local SQLite schema exists
     async with HybridAgent() as agent:
         _agent = agent
         yield
@@ -174,7 +172,7 @@ async def upload_document(
 @app.get("/api/documents", response_model=list[DocumentInfo], tags=["Documents"])
 async def list_documents(limit: int = 50):
     """List all documents currently cached in the local SQLite store."""
-    rows = local_db.list_documents(limit=limit)
+    rows = await agent.list_cached_documents(limit=limit)
     return [
         DocumentInfo(
             doc_id=r["doc_id"],
@@ -193,10 +191,10 @@ async def summarize(req: SummarizeRequest):
 
     text = req.text or ""
     if req.doc_id and not text:
-        doc = local_db.get_document(req.doc_id)
-        if doc is None:
+        doc = await agent.get_cached_document(req.doc_id)
+        if not doc.ok:
             raise HTTPException(status_code=404, detail=f"Document '{req.doc_id}' not found in local cache.")
-        text = doc["content"]
+        text = doc.text
 
     if not text.strip():
         raise HTTPException(status_code=422, detail="Provide either doc_id or non-empty text.")
@@ -216,10 +214,10 @@ async def analyze(req: AnalyzeRequest):
 
     text = req.text or ""
     if req.doc_id and not text:
-        doc = local_db.get_document(req.doc_id)
-        if doc is None:
+        doc = await agent.get_cached_document(req.doc_id)
+        if not doc.ok:
             raise HTTPException(status_code=404, detail=f"Document '{req.doc_id}' not found in local cache.")
-        text = doc["content"]
+        text = doc.text
 
     if not text.strip():
         raise HTTPException(status_code=422, detail="Provide either doc_id or non-empty text.")
