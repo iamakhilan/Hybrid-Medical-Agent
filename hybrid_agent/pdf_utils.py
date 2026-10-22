@@ -15,6 +15,25 @@ from __future__ import annotations
 import io
 
 
+def extract_pages(filename: str, file_bytes: bytes) -> list[str]:
+    """Extract one text string per PDF page; plain text files are page 1."""
+    if filename.lower().endswith(".pdf"):
+        try:
+            from pypdf import PdfReader
+        except ImportError as exc:
+            raise ValueError("pypdf is not installed. Run: pip install pypdf") from exc
+        reader = PdfReader(io.BytesIO(file_bytes))
+        pages = [(page.extract_text() or "").strip() for page in reader.pages]
+        if not pages:
+            raise ValueError("PDF has no pages or no extractable text.")
+        return pages
+    try:
+        decoded = file_bytes.decode("utf-8")
+    except UnicodeDecodeError:
+        decoded = file_bytes.decode("latin-1")
+    return [decoded]
+
+
 def extract_text(filename: str, file_bytes: bytes) -> str:
     """
     Extract plain text from an uploaded file.
@@ -26,16 +45,7 @@ def extract_text(filename: str, file_bytes: bytes) -> str:
     Returns the extracted text string. Raises ValueError with a
     human-readable message if the file cannot be parsed.
     """
-    lower = filename.lower()
-
-    if lower.endswith(".pdf"):
-        return _extract_pdf(file_bytes)
-    else:
-        # Treat everything else as plain text; try UTF-8 first, then latin-1
-        try:
-            return file_bytes.decode("utf-8")
-        except UnicodeDecodeError:
-            return file_bytes.decode("latin-1")
+    return "\n\n".join(extract_pages(filename, file_bytes))
 
 
 def _extract_pdf(file_bytes: bytes) -> str:

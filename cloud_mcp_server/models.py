@@ -14,6 +14,7 @@ class Chunk:
     chunk_index: int
     text: str
     title: str = ""
+    page_number: int | None = None
 
 
 @dataclass
@@ -23,6 +24,7 @@ class SearchHit:
     text: str
     title: str
     score: float
+    page_number: int | None = None
 
 
 @dataclass

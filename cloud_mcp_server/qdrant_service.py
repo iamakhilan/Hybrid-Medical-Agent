@@ -122,6 +122,7 @@ def upsert_chunks(chunks_with_vectors: list[tuple[Chunk, list[float]]]) -> int:
                 "chunk_index": chunk.chunk_index,
                 "title": chunk.title,
                 "text": chunk.text,
+                "page_number": chunk.page_number,
             },
         )
         for chunk, vector in chunks_with_vectors
@@ -163,6 +164,7 @@ def search(query_vector: list[float], top_k: int = config.DEFAULT_TOP_K) -> list
                     text=payload.get("text", ""),
                     title=payload.get("title", ""),
                     score=point.score,
+                    page_number=payload.get("page_number"),
                 )
             )
         return hits
