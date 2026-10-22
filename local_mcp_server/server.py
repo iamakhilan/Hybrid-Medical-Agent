@@ -83,7 +83,7 @@ def get_cached_document(doc_id: str) -> str:
 
 
 @mcp.resource("cache://docs/{doc_id}")
-def get_cached_document(doc_id: str) -> str:
+def get_cached_document_resource(doc_id: str) -> str:
     """Return the full cached text of a document by id."""
     doc = db.get_document(doc_id)
     if doc is None:
