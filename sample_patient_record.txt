@@ -1,0 +1,190 @@
+PATIENT MEDICAL RECORD
+======================
+Patient ID   : PT-2024-00481
+Name         : Arjun Mehta
+Date of Birth: 14 March 1978  (Age: 46)
+Gender       : Male
+Blood Group  : B+
+Contact      : +91-98765-43210
+Address      : 42, Residency Road, Bengaluru, Karnataka - 560025
+
+ATTENDING PHYSICIAN: Dr. Priya Nair, MBBS, MD (Internal Medicine)
+Hospital             : Apollo Hospitals, Bengaluru
+Record Date          : 12 August 2026
+
+----------------------------------------------------------------------
+CHIEF COMPLAINT
+----------------------------------------------------------------------
+Patient presents with fatigue, increased thirst, frequent urination,
+and blurred vision persisting for approximately 6 weeks. Reports a
+weight gain of 5 kg over the past 4 months.
+
+----------------------------------------------------------------------
+HISTORY OF PRESENT ILLNESS
+----------------------------------------------------------------------
+Mr. Arjun Mehta is a 46-year-old male software engineer with a
+sedentary lifestyle. He first noticed excessive thirst and urination
+approximately 6 weeks ago. He also reports feeling fatigued despite
+adequate sleep and experiencing intermittent blurring of vision,
+particularly in the evenings.
+
+He denies chest pain, shortness of breath, or syncopal episodes.
+No history of recent infections or fever. No travel history outside
+Karnataka in the past year.
+
+Family history is significant: father diagnosed with Type 2 Diabetes
+Mellitus at age 50; maternal uncle had a history of hypertension.
+
+----------------------------------------------------------------------
+PAST MEDICAL HISTORY
+----------------------------------------------------------------------
+- Hypertension (diagnosed 2019) — currently managed with Amlodipine 5mg OD
+- Dyslipidemia (diagnosed 2021) — managed with Atorvastatin 10mg OD
+- No prior surgeries
+- No known drug allergies
+
+----------------------------------------------------------------------
+CURRENT MEDICATIONS
+----------------------------------------------------------------------
+1. Amlodipine 5 mg — once daily (morning) — for hypertension
+2. Atorvastatin 10 mg — once daily (night) — for dyslipidemia
+3. Multivitamin tablet — once daily
+
+----------------------------------------------------------------------
+REVIEW OF SYSTEMS
+----------------------------------------------------------------------
+General       : Fatigue, weight gain (+5 kg in 4 months)
+Eyes          : Blurred vision (intermittent, worse in evenings)
+Cardiovascular: No chest pain, no palpitations
+Respiratory   : No cough, no shortness of breath
+GI            : Appetite increased, no nausea or vomiting
+GU            : Polyuria (~8-10 voids/day), nocturia x2
+Neuro         : No headache, no tingling or numbness in extremities
+MSK           : No joint pain
+
+----------------------------------------------------------------------
+PHYSICAL EXAMINATION
+----------------------------------------------------------------------
+Vitals:
+  Blood Pressure   : 138/88 mmHg
+  Heart Rate       : 82 bpm (regular)
+  Temperature      : 36.8 degrees C
+  Respiratory Rate : 16 breaths/min
+  SpO2             : 98% on room air
+  Weight           : 89 kg
+  Height           : 172 cm
+  BMI              : 30.1 kg/m2 (Obese Class I)
+
+General       : Alert, oriented, mildly fatigued appearance
+HEENT         : No icterus, no pallor; mild conjunctival dryness
+Cardiovascular: S1 S2 heard; no murmurs
+Respiratory   : Clear to auscultation bilaterally
+Abdomen       : Soft, non-tender; no hepatosplenomegaly
+Extremities   : No pedal edema; peripheral pulses intact
+Neuro         : Grossly intact; no focal deficits
+
+----------------------------------------------------------------------
+LABORATORY INVESTIGATIONS
+----------------------------------------------------------------------
+Date: 10 August 2026 (fasting, 12 hours)
+
+BLOOD GLUCOSE
+  Fasting Blood Glucose (FBG)     : 198 mg/dL   [Ref: 70-100]   HIGH
+  Post-Prandial Glucose (2hr PPG) : 286 mg/dL   [Ref: <140]     HIGH
+
+HbA1c
+  HbA1c                           : 8.4%         [Ref: <5.7%]    HIGH
+  Estimated Average Glucose (eAG) : 194 mg/dL
+
+LIPID PROFILE
+  Total Cholesterol  : 212 mg/dL  [Ref: <200]   BORDERLINE HIGH
+  LDL Cholesterol    : 138 mg/dL  [Ref: <100]   HIGH
+  HDL Cholesterol    : 38 mg/dL   [Ref: >40]    LOW
+  Triglycerides      : 218 mg/dL  [Ref: <150]   HIGH
+
+KIDNEY FUNCTION
+  Serum Creatinine   : 1.1 mg/dL  [Ref: 0.7-1.2] Normal
+  eGFR               : 74 mL/min/1.73m2           Normal
+  BUN                : 18 mg/dL   [Ref: 7-20]     Normal
+  Urine Microalbumin : 42 mg/g    [Ref: <30]      ELEVATED
+
+LIVER FUNCTION
+  ALT (SGPT)         : 38 U/L     [Ref: 7-56]   Normal
+  AST (SGOT)         : 32 U/L     [Ref: 10-40]  Normal
+  Bilirubin (Total)  : 0.8 mg/dL  [Ref: 0.2-1.2] Normal
+
+CBC
+  Hemoglobin         : 13.8 g/dL  [Ref: 13.5-17.5] Normal
+  WBC                : 7,200/uL   [Ref: 4000-11000] Normal
+  Platelets          : 2,40,000/uL                  Normal
+
+THYROID
+  TSH                : 3.1 mIU/L  [Ref: 0.4-4.0]   Normal
+
+----------------------------------------------------------------------
+ASSESSMENT AND DIAGNOSIS
+----------------------------------------------------------------------
+1. NEW DIAGNOSIS: Type 2 Diabetes Mellitus (T2DM)
+   - HbA1c 8.4%, FBG 198 mg/dL, PPG 286 mg/dL consistent with T2DM
+   - Likely duration: 3-6 months prior to presentation
+
+2. Hypertension — suboptimally controlled (BP 138/88 on current therapy)
+   - Target BP for diabetic patient: <130/80 mmHg
+
+3. Dyslipidemia — worsened; LDL elevated despite statin therapy
+
+4. Early Diabetic Nephropathy — Microalbuminuria (42 mg/g)
+
+5. Obesity Class I (BMI 30.1)
+
+----------------------------------------------------------------------
+TREATMENT PLAN
+----------------------------------------------------------------------
+MEDICATIONS (updated):
+1. Metformin 500 mg twice daily with meals — START (titrate to 1000mg BD)
+2. Amlodipine — increase to 10 mg OD (for better BP control)
+3. Atorvastatin — increase to 40 mg OD (target LDL <70 for T2DM)
+4. Ramipril 2.5 mg OD — ADD (renoprotection for microalbuminuria)
+5. Multivitamin — continue
+
+LIFESTYLE:
+- Diabetic diet counselling: reduce simple carbohydrates and refined sugars
+- Physical activity: 150 min moderate exercise per week (brisk walking)
+- Weight loss target: 5-7% body weight reduction over 6 months
+- Alcohol restriction; no smoking (patient is a non-smoker)
+
+MONITORING:
+- Self-monitoring of blood glucose (SMBG): fasting and 2hr post-meals
+- Review HbA1c in 3 months (target: <7.0%)
+- Repeat lipid profile in 3 months
+- Annual dilated eye exam (ophthalmology referral placed)
+- Annual foot examination
+- Urine microalbumin: recheck in 3 months
+
+----------------------------------------------------------------------
+FOLLOW-UP
+----------------------------------------------------------------------
+Scheduled: 10 September 2026 (4 weeks)
+- Review glucose diary
+- BP check
+- Assess Metformin tolerability (GI side effects)
+- Review ophthalmology appointment status
+
+----------------------------------------------------------------------
+PHYSICIAN NOTES
+----------------------------------------------------------------------
+Patient was counselled extensively regarding the new diagnosis of Type
+2 Diabetes. He expressed understanding and concern. Patient agrees to
+lifestyle modifications and medication changes. Printed patient
+education material on T2DM provided. Diabetic educator appointment
+scheduled for 20 August 2026.
+
+Emphasised importance of regular monitoring and not missing follow-ups.
+Risk of microvascular and macrovascular complications discussed.
+
+----------------------------------------------------------------------
+Electronically signed by:
+Dr. Priya Nair, MD (Internal Medicine)
+Apollo Hospitals, Bengaluru
+Date: 12 August 2026  Time: 14:35 IST
+----------------------------------------------------------------------

@@ -1,0 +1,9 @@
+# Core (required)
+mcp==1.29.0
+python-dotenv==1.0.1
+
+# Optional: only needed if you plug in a real local model
+# (Phi-3, Llama-3-8B-Instruct-4bit, etc. as a .gguf file).
+# Without this installed, local_llm.py automatically falls back to a
+# fast extractive answer built from cached search results.
+# llama-cpp-python==0.3.4

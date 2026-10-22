@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MedAgent — Hybrid Doctor-Document AI</title>
+  <meta name="description" content="AI-powered medical document assistant with local cache and cloud deep-context analysis for clinicians." />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+<div class="app-shell">
+
+  <!-- ====================== SIDEBAR ====================== -->
+  <aside class="sidebar">
+
+    <div class="sidebar-logo">
+      <div class="logo-icon">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="2,12 7,12 10,4 14,20 17,12 22,12" />
+        </svg>
+      </div>
+      <div class="logo-text">
+        <span class="logo-title">MedAgent</span>
+        <span class="logo-sub">Local + Cloud</span>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <span class="nav-label">Workspace</span>
+
+      <button class="nav-btn active" data-panel="chat" id="nav-chat" aria-label="Chat panel">
+        <span class="nav-icon">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 4h16v12H8l-4 4V4Z" />
+          </svg>
+        </span>
+        Clinical Q&amp;A
+      </button>
+
+      <button class="nav-btn" data-panel="docs" id="nav-docs" aria-label="Documents panel">
+        <span class="nav-icon">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" />
+          </svg>
+        </span>
+        Documents
+      </button>
+
+      <button class="nav-btn" data-panel="analyze" id="nav-analyze" aria-label="Analyze panel">
+        <span class="nav-icon">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 2.5h6M10 2.5v5.7L4.8 18.4A2 2 0 0 0 6.6 21h10.8a2 2 0 0 0 1.8-2.6L14 8.2V2.5" />
+          </svg>
+        </span>
+        Deep Analysis
+      </button>
+    </nav>
+
+    <!-- Server status -->
+    <div class="sidebar-status">
+      <div class="status-label">Servers</div>
+
+      <div class="status-row">
+        <div class="status-dot loading" id="local-dot" title="Local MCP Server"></div>
+        <span class="status-name">Local cache</span>
+        <span class="status-latency" id="local-status">…</span>
+      </div>
+
+      <div class="status-row">
+        <div class="status-dot loading" id="cloud-dot" title="Cloud MCP Server"></div>
+        <span class="status-name">Cloud (Gemini)</span>
+        <span class="status-latency" id="cloud-status">…</span>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- ====================== MAIN ====================== -->
+  <main class="main">
+
+    <!-- Top bar -->
+    <div class="topbar">
+      <div>
+        <div class="topbar-title" id="topbar-title">Clinical Q&amp;A</div>
+        <div class="topbar-sub" id="topbar-sub">Ask questions about your patient documents</div>
+      </div>
+    </div>
+
+    <!-- ========== CHAT PANEL ========== -->
+    <section class="panel active" id="panel-chat" aria-label="Chat panel">
+
+      <div class="chat-messages" id="chat-messages">
+        <div class="chat-empty">
+          <div class="empty-icon">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="2,12 7,12 10,4 14,20 17,12 22,12" />
+            </svg>
+          </div>
+          <p>Ask any clinical question about your patient documents. Answers come from your local cache and the cloud, at the same time.</p>
+          <div class="suggestion-chips">
+            <span class="chip">What are the latest lab values?</span>
+            <span class="chip">Summarise the diagnosis history</span>
+            <span class="chip">What medications is the patient on?</span>
+            <span class="chip">Are there any abnormal findings?</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="chat-input-area">
+        <div class="chat-input-row">
+          <textarea
+            id="chat-input"
+            placeholder="Ask a clinical question… (Enter to send, Shift+Enter for newline)"
+            rows="1"
+            aria-label="Question input"
+          ></textarea>
+          <button id="send-btn" aria-label="Send question">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="4" y1="12" x2="20" y2="12" />
+              <polyline points="14,6 20,12 14,18" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ========== DOCUMENTS PANEL ========== -->
+    <section class="panel" id="panel-docs" aria-label="Documents panel">
+      <div class="docs-panel-inner">
+
+        <!-- Upload zone -->
+        <label class="upload-zone" id="upload-zone" for="file-input" aria-label="Upload document">
+          <span class="upload-icon">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M7 18a4.6 4.6 0 0 1-1-9.1 5.5 5.5 0 0 1 10.8-1.9A4.5 4.5 0 0 1 17.5 18" />
+              <polyline points="9,13 12,10 15,13" />
+              <line x1="12" y1="10" x2="12" y2="21" />
+            </svg>
+          </span>
+          <span class="upload-title">Drop a file here or click to browse</span>
+          <span class="upload-sub">PDF · TXT · MD — max 20 MB</span>
+          <input type="file" id="file-input" accept=".pdf,.txt,.md" aria-hidden="true" />
+        </label>
+
+        <div class="upload-progress" id="upload-progress" aria-live="polite">
+          <span style="font-size:13px;color:var(--ink-soft)" id="upload-status">Uploading…</span>
+          <div class="progress-bar-outer">
+            <div class="progress-bar-inner" id="progress-bar"></div>
+          </div>
+        </div>
+
+        <!-- Document library -->
+        <div class="docs-list-header">
+          <h3>Cached documents</h3>
+          <span class="doc-count" id="doc-count">0</span>
+        </div>
+
+        <div class="docs-grid" id="docs-grid" aria-label="Document library"></div>
+
+        <div class="docs-empty" id="docs-empty">
+          <div class="empty-icon">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 2h9l5 5v15H6V2Z" />
+              <path d="M15 2v5h5" />
+            </svg>
+          </div>
+          <p>No documents cached yet. Upload a PDF or text file above to get started.</p>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ========== ANALYZE PANEL ========== -->
+    <section class="panel" id="panel-analyze" aria-label="Deep analysis panel">
+      <div class="analyze-panel-inner">
+
+        <div class="form-group">
+          <label class="form-label" for="analyze-doc-select">Source document</label>
+          <select class="form-select" id="analyze-doc-select" aria-label="Select document">
+            <option value="">— Paste text below instead —</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="analyze-paste">Or paste text directly</label>
+          <textarea
+            class="form-textarea"
+            id="analyze-paste"
+            placeholder="Paste raw document text here if you haven't uploaded it yet…"
+            style="min-height:120px"
+            aria-label="Paste document text"
+          ></textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="analyze-question">Analysis question</label>
+          <textarea
+            class="form-textarea"
+            id="analyze-question"
+            placeholder="e.g. Identify the progression of the disease, compare previous treatments, extract lab values…"
+            style="min-height:80px"
+            aria-label="Analysis question"
+          ></textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="summarize-question">Summarize focus <span style="color:var(--ink-faint);font-weight:400;text-transform:none">(optional)</span></label>
+          <textarea
+            class="form-textarea"
+            id="summarize-question"
+            placeholder="e.g. medication history, lab values, key diagnoses…"
+            style="min-height:56px"
+            aria-label="Summarize focus"
+          ></textarea>
+        </div>
+
+        <div class="analyze-actions">
+          <button class="btn-primary-full" id="analyze-btn" aria-label="Run deep analysis">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 2.5h6M10 2.5v5.7L4.8 18.4A2 2 0 0 0 6.6 21h10.8a2 2 0 0 0 1.8-2.6L14 8.2V2.5" />
+            </svg>
+            Run deep analysis
+          </button>
+          <button class="btn-secondary-full" id="summarize-btn" aria-label="Summarize document">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3Z" />
+              <path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15Z" />
+            </svg>
+            Summarize
+          </button>
+        </div>
+
+        <!-- Analysis result -->
+        <div class="result-box" id="analyze-result" aria-live="polite">
+          <div class="result-box-header">
+            <span class="result-box-title">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 2.5h6M10 2.5v5.7L4.8 18.4A2 2 0 0 0 6.6 21h10.8a2 2 0 0 0 1.8-2.6L14 8.2V2.5" />
+              </svg>
+              Deep analysis
+            </span>
+          </div>
+          <div class="result-box-content" id="analyze-result-content"></div>
+        </div>
+
+        <!-- Summarize result -->
+        <div class="result-box" id="summarize-result" aria-live="polite">
+          <div class="result-box-header">
+            <span class="result-box-title">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3Z" />
+                <path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15Z" />
+              </svg>
+              Summary
+            </span>
+          </div>
+          <div class="result-box-content" id="summarize-result-content"></div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ====================== MODAL ====================== -->
+<div class="modal-overlay" id="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title" id="modal-title">Summary</h2>
+      <button class="modal-close" id="modal-close" aria-label="Close modal">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="5" y1="5" x2="19" y2="19" />
+          <line x1="19" y1="5" x2="5" y2="19" />
+        </svg>
+      </button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<!-- ====================== TOASTS ====================== -->
+<div class="toast-container" id="toast-container" aria-live="assertive"></div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

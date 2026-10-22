@@ -1,0 +1,18 @@
+# Convenience file: installs everything needed for all three components
+# (hybrid_agent, local_mcp_server, cloud_mcp_server) into one environment.
+# Each component also has its own requirements.txt if you'd rather keep
+# them in separate environments/machines.
+
+mcp==1.29.0
+python-dotenv==1.0.1
+google-genai>=1.0.0
+qdrant-client>=1.12.0
+
+# Doctor's UI layer
+fastapi>=0.111.0
+uvicorn[standard]>=0.29.0
+python-multipart>=0.0.9
+pypdf>=4.0.0
+
+# Optional local model support (see local_mcp_server/config.py)
+# llama-cpp-python==0.3.4

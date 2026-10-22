@@ -1,0 +1,12 @@
+.env
+__pycache__/
+*.pyc
+*.db
+.venv/
+.venv-*/
+.venv_*/
+venv/
+env/
+*.egg-info/
+*.log
+API_keys
