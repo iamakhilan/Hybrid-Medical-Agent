@@ -182,6 +182,19 @@
           </label>
         </div>
 
+        <div class="docs-toolbar" aria-label="Document filters">
+          <label class="docs-filter-label" for="doc-type-filter">File type
+            <select id="doc-type-filter" class="docs-filter">
+              <option value="all">All types</option><option value="pdf">PDF</option><option value="txt">TXT</option><option value="md">Markdown</option>
+            </select>
+          </label>
+          <label class="docs-filter-label" for="doc-sort">Sort by
+            <select id="doc-sort" class="docs-filter">
+              <option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="name">Name A–Z</option>
+            </select>
+          </label>
+        </div>
+        <p class="docs-status" id="docs-status" role="status" aria-live="polite"></p>
         <div class="docs-grid" id="docs-grid" aria-label="Document library"></div>
 
         <div class="docs-empty" id="docs-empty">
@@ -284,6 +297,7 @@
               </svg>
               Deep analysis
             </span>
+            <button type="button" class="result-copy-btn" data-copy-target="analyze-result-content">Copy result</button>
           </div>
           <div class="result-box-content" id="analyze-result-content"></div>
         </div>
@@ -298,6 +312,7 @@
               </svg>
               Summary
             </span>
+            <button type="button" class="result-copy-btn" data-copy-target="summarize-result-content">Copy result</button>
           </div>
           <div class="result-box-content" id="summarize-result-content"></div>
         </div>

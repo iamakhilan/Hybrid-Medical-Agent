@@ -83,6 +83,9 @@ const topbarSub       = document.getElementById('topbar-sub');
 const topbarHealth    = document.getElementById('topbar-health');
 const topbarHealthText = document.getElementById('topbar-health-text');
 const docSearch       = document.getElementById('doc-search');
+const docTypeFilter   = document.getElementById('doc-type-filter');
+const docSort         = document.getElementById('doc-sort');
+const docsStatus      = document.getElementById('docs-status');
 const chatCharCount   = document.getElementById('chat-char-count');
 
 // ----------------------------------------------------------------
@@ -358,62 +361,91 @@ async function loadDocuments() {
 
 function renderDocuments() {
   const query = (docSearch?.value || '').trim().toLowerCase();
-  const visibleDocuments = query
-    ? documents.filter(doc =>
-        String(doc.title || '').toLowerCase().includes(query) ||
-        String(doc.source || '').toLowerCase().includes(query)
-      )
-    : documents;
+  const type = docTypeFilter?.value || 'all';
+  const sort = docSort?.value || 'newest';
+  const filtered = documents.filter(doc => {
+    const title = String(doc.title || '');
+    const source = String(doc.source || '');
+    const matchesQuery = !query || title.toLowerCase().includes(query) || source.toLowerCase().includes(query);
+    const extension = (source.split('.').pop() || title.split('.').pop() || '').toLowerCase();
+    const matchesType = type === 'all' || extension === type || (type === 'md' && extension === 'markdown');
+    return matchesQuery && matchesType;
+  });
+  const visibleDocuments = [...filtered].sort((a, b) => {
+    if (sort === 'name') return String(a.title || '').localeCompare(String(b.title || ''), undefined, { sensitivity: 'base' });
+    const aTime = Number(a.created_at) || 0;
+    const bTime = Number(b.created_at) || 0;
+    return sort === 'oldest' ? aTime - bTime : bTime - aTime;
+  });
 
-  docCount.textContent = query ? `${visibleDocuments.length} / ${documents.length}` : documents.length;
+  docCount.textContent = query || type !== 'all' ? `${visibleDocuments.length} / ${documents.length}` : documents.length;
+  docsGrid.innerHTML = '';
+  docsStatus.textContent = documents.length ? `${visibleDocuments.length} of ${documents.length} documents` : '';
 
-  if (documents.length === 0) {
+  if (documents.length === 0 || visibleDocuments.length === 0) {
     docsGrid.classList.add('hidden');
     docsEmpty.classList.remove('hidden');
+    docsEmpty.querySelector('p').textContent = documents.length === 0
+      ? 'Your library is empty. Upload a PDF, TXT, or Markdown file above to start asking questions about your documents.'
+      : 'No documents match these filters. Try another search or file type.';
     return;
   }
 
-  if (visibleDocuments.length === 0) {
-    docsGrid.classList.add('hidden');
-    docsEmpty.classList.remove('hidden');
-    docsEmpty.querySelector('p').textContent = 'No documents match your search.';
-    return;
-  }
-
-  docsEmpty.querySelector('p').textContent = 'No documents cached yet. Upload a PDF or text file above to get started.';
   docsEmpty.classList.add('hidden');
   docsGrid.classList.remove('hidden');
-  docsGrid.innerHTML = '';
 
   visibleDocuments.forEach(doc => {
-    const date = new Date(doc.created_at * 1000).toLocaleDateString('en-IN', {
-      day: 'numeric', month: 'short', year: 'numeric'
-    });
-    const card = document.createElement('div');
+    const timestamp = Number(doc.created_at);
+    const date = Number.isFinite(timestamp) && timestamp > 0
+      ? new Date(timestamp * 1000).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+      : 'Date unavailable';
+    const source = String(doc.source || 'Document');
+    const title = String(doc.title || 'Untitled document');
+    const extension = (source.split('.').pop() || title.split('.').pop() || 'file').toUpperCase();
+    const card = document.createElement('article');
     card.className = 'doc-card';
-    card.innerHTML = `
-      <div class="doc-card-header">
-        <div class="doc-icon">${ICONS.file}</div>
-        <div class="doc-title">${escHtml(doc.title)}</div>
-      </div>
-      <div class="doc-meta">
-        <span class="doc-tag">${escHtml(doc.source)}</span>
-        <span class="doc-date">${date}</span>
-      </div>
-      <div class="doc-actions">
-        <button class="btn-sm btn-primary" onclick="summarizeDoc('${escHtml(doc.doc_id)}', '${escHtml(doc.title)}')">
-          ${ICONS.sparkles} Summarize
-        </button>
-        <button class="btn-sm btn-ghost" onclick="analyzeDoc('${escHtml(doc.doc_id)}')">
-          ${ICONS.flask} Analyze
-        </button>
-      </div>
-    `;
+    const header = document.createElement('div');
+    header.className = 'doc-card-header';
+    const icon = document.createElement('div');
+    icon.className = 'doc-icon';
+    icon.innerHTML = ICONS.file;
+    icon.setAttribute('aria-hidden', 'true');
+    const titleEl = document.createElement('h3');
+    titleEl.className = 'doc-title';
+    titleEl.textContent = title;
+    header.append(icon, titleEl);
+
+    const meta = document.createElement('div');
+    meta.className = 'doc-meta';
+    const tag = document.createElement('span');
+    tag.className = 'doc-tag';
+    tag.textContent = extension;
+    const dateEl = document.createElement('span');
+    dateEl.className = 'doc-date';
+    dateEl.textContent = date;
+    meta.append(tag, dateEl);
+
+    const actions = document.createElement('div');
+    actions.className = 'doc-actions';
+    const summarize = document.createElement('button');
+    summarize.type = 'button';
+    summarize.className = 'btn-sm btn-primary';
+    summarize.innerHTML = `${ICONS.sparkles} Summarize`;
+    summarize.addEventListener('click', () => window.summarizeDoc(String(doc.doc_id || ''), title));
+    const analyze = document.createElement('button');
+    analyze.type = 'button';
+    analyze.className = 'btn-sm btn-ghost';
+    analyze.innerHTML = `${ICONS.flask} Analyze`;
+    analyze.addEventListener('click', () => window.analyzeDoc(String(doc.doc_id || '')));
+    actions.append(summarize, analyze);
+    card.append(header, meta, actions);
     docsGrid.appendChild(card);
   });
 }
 
 docSearch?.addEventListener('input', renderDocuments);
+docTypeFilter?.addEventListener('change', renderDocuments);
+docSort?.addEventListener('change', renderDocuments);
 
 function updateAnalyzeSelect() {
   const current = analyzeDocSel.value;
@@ -623,3 +655,19 @@ async function init() {
 }
 
 init();
+
+
+// Copy generated analysis or summary without changing the source content.
+document.querySelectorAll('[data-copy-target]').forEach(button => {
+  button.addEventListener('click', async () => {
+    const target = document.getElementById(button.dataset.copyTarget);
+    const text = target?.innerText?.trim();
+    if (!text) { showToast('error', 'There is no result to copy yet.'); return; }
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast('success', 'Result copied to clipboard.');
+    } catch {
+      showToast('error', 'Clipboard access is unavailable in this browser. Select the result text and copy it manually.');
+    }
+  });
+});
