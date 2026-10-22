@@ -297,6 +297,9 @@ The tests cover cloud-answer preference, local-preview inclusion, fallback when 
 
 ### Evidence-linked answers
 
+Original uploaded files are retained on the API host under a local `source_files/` directory so evidence links can open the source. This directory is ignored by Git; do not expose the unauthenticated API to untrusted networks or commit patient records.
+
+
 When the cloud retrieval path returns source chunks, Q&A responses include expandable evidence cards with the source document title, PDF page number when available, and retrieved passage. Page numbers are retained as metadata during PDF extraction and cloud chunk ingestion. Text files are treated as a single page. Evidence cards show retrieved passages; they do not guarantee that every sentence in a generated answer is fully supported. If the cloud retrieval path is unavailable, the UI explicitly indicates that source passages were not returned.
 
 ### Medical timeline and safety review
