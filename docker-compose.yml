@@ -1,0 +1,53 @@
+services:
+  cloud-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: hybrid-medical-agent:local
+    command: ["python", "-m", "cloud_mcp_server.server"]
+    env_file:
+      - .env
+    environment:
+      CLOUD_MCP_HOST: 0.0.0.0
+      CLOUD_MCP_PORT: 8000
+    ports:
+      - "127.0.0.1:8000:8000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s=socket.create_connection(('127.0.0.1', 8000), 3); s.close()"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  api:
+    image: hybrid-medical-agent:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["python", "-m", "hybrid_agent.api"]
+    env_file:
+      - .env
+    environment:
+      UI_HOST: 0.0.0.0
+      UI_PORT: 7860
+      CLOUD_SERVER_URL: http://cloud-mcp:8000/mcp
+      CLOUD_MCP_HOST: 0.0.0.0
+      LOCAL_DB_PATH: /data/local_cache.db
+    ports:
+      - "127.0.0.1:7860:7860"
+    volumes:
+      - medical-agent-data:/data
+    depends_on:
+      cloud-mcp:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:7860/api/health', timeout=5).read()"]
+      interval: 20s
+      timeout: 8s
+      retries: 5
+      start_period: 25s
+
+volumes:
+  medical-agent-data:
