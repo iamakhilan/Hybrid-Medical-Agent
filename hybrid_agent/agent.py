@@ -129,7 +129,7 @@ class HybridAgent:
         except Exception as exc:
             return SourceResult(ok=False, error=str(exc), latency_seconds=time.monotonic() - start)
 
-    async def _call_cloud(self, tool: str, arguments: dict, timeout: float = 30.0) -> SourceResult:
+    async def _call_cloud(self, tool: str, arguments: dict, timeout: float = config.CLOUD_TIMEOUT_SECONDS) -> SourceResult:
         start = time.monotonic()
         if self.cloud_session is None:
             return SourceResult(ok=False, error="Cloud MCP session not connected.")
@@ -159,7 +159,7 @@ class HybridAgent:
         cloud call fails or isn't connected."""
         local_task = asyncio.create_task(self._call_local("ask_local", {"question": question, "top_k": top_k}))
         cloud_task = asyncio.create_task(
-            self._call_cloud("answer_with_cloud_context", {"question": question, "top_k": top_k})
+            self._call_cloud("answer_with_cloud_context", {"question": question, "top_k": top_k}, timeout=config.CLOUD_TIMEOUT_SECONDS)
         )
         local_result, cloud_result = await asyncio.gather(local_task, cloud_task)
 
@@ -196,7 +196,12 @@ class HybridAgent:
         # If cloud returned a disclaimer/refusal but local has a valid cached answer, use local.
         if cloud.ok and cloud_text and not cloud_has_disclaimer:
             used_cloud = True
-            merged_text = cloud_text
+            # Keep the cloud answer primary and expose the fast local result
+            # as a preview, as specified by the project report.
+            if local.ok and local_text and local_text.strip() != cloud_text:
+                merged_text = f"{cloud_text}\\n\\n---\\nLocal fast preview ({local.latency_seconds * 1000:.2f} ms):\\n{local_text}"
+            else:
+                merged_text = cloud_text
         elif local.ok and local_text:
             used_cloud = False
             merged_text = local_text
