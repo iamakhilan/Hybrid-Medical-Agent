@@ -259,6 +259,13 @@ function autoResize(el) {
   el.style.height = Math.min(el.scrollHeight, 120) + 'px';
 }
 
+// Empty-state onboarding
+const emptyUploadCta = document.getElementById('empty-upload-cta');
+emptyUploadCta?.addEventListener('click', () => {
+  switchPanel('docs');
+  document.getElementById('upload-zone')?.focus();
+});
+
 // Suggestion chips
 document.querySelectorAll('.chip').forEach(chip => {
   chip.addEventListener('click', () => {
@@ -271,7 +278,7 @@ document.querySelectorAll('.chip').forEach(chip => {
 // ----------------------------------------------------------------
 // Document Upload
 // ----------------------------------------------------------------
-uploadZone.addEventListener('click', () => fileInput.click());
+// The associated label opens the picker; avoid a duplicate click handler.
 uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
 uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
 uploadZone.addEventListener('drop', e => {
@@ -529,10 +536,21 @@ function setAnalyzeLoading(loading) {
 // ----------------------------------------------------------------
 // Modal (summarize result)
 // ----------------------------------------------------------------
+let modalPreviousFocus = null;
+
+function closeModal() {
+  modalOverlay.classList.remove('visible');
+  modalOverlay.setAttribute('aria-hidden', 'true');
+  modalPreviousFocus?.focus();
+}
+
 function openModal(loadingText) {
+  modalPreviousFocus = document.activeElement;
   modalBody.innerHTML = `<div class="modal-loading">${pulseTraceSvg(true)} ${escHtml(loadingText)}</div>`;
   modalTitle.textContent = 'Processing…';
   modalOverlay.classList.add('visible');
+  modalOverlay.setAttribute('aria-hidden', 'false');
+  document.getElementById('modal-close').focus();
 }
 
 function setModalContent(title, content) {
@@ -540,12 +558,20 @@ function setModalContent(title, content) {
   modalBody.innerHTML = renderMarkdownLite(content);
 }
 
-document.getElementById('modal-close').addEventListener('click', () => {
-  modalOverlay.classList.remove('visible');
-});
+document.getElementById('modal-close').addEventListener('click', closeModal);
 
 modalOverlay.addEventListener('click', e => {
-  if (e.target === modalOverlay) modalOverlay.classList.remove('visible');
+  if (e.target === modalOverlay) closeModal();
+});
+
+modalOverlay.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+  if (e.key !== 'Tab') return;
+  const focusable = [...modalOverlay.querySelectorAll('button:not([disabled]), a[href], input:not([disabled]), textarea:not([disabled])')];
+  if (!focusable.length) return;
+  const first = focusable[0], last = focusable[focusable.length - 1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
 });
 
 document.addEventListener('keydown', e => {

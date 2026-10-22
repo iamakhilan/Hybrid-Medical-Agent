@@ -26,7 +26,7 @@
       </div>
     </div>
 
-    <nav class="sidebar-nav">
+    <nav class="sidebar-nav" aria-label="Workspace navigation">
       <span class="nav-label">Workspace</span>
 
       <button class="nav-btn active" data-panel="chat" id="nav-chat">
@@ -96,6 +96,7 @@
 
       <div class="chat-messages" id="chat-messages">
         <div class="chat-empty">
+          <h2 class="empty-title">Your clinical workspace, ready when you are</h2>
           <div class="empty-icon">
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="2,12 7,12 10,4 14,20 17,12 22,12" />
@@ -105,6 +106,8 @@
             <h2>Ask your documents, not a blank chat</h2>
             <p>Get answers grounded in your cached patient documents, with local retrieval and cloud analysis working together.</p>
           </div>
+          <button type="button" class="empty-upload-cta" id="empty-upload-cta">Upload your first document <span aria-hidden="true">→</span></button>
+          <span class="suggestions-label">Or try a question</span>
           <div class="suggestion-chips">
             <button type="button" class="chip">What are the latest lab values?</button>
             <button type="button" class="chip">Summarise the diagnosis history</button>
@@ -115,6 +118,7 @@
       </div>
 
       <div class="chat-input-area">
+        <div class="composer-caption"><span>Clinical Q&amp;A</span><span>Enter to send · Shift+Enter for a new line</span></div>
         <div class="chat-input-row">
           <textarea
             id="chat-input"
@@ -305,7 +309,7 @@
 </div>
 
 <!-- ====================== MODAL ====================== -->
-<div class="modal-overlay" id="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+<div class="modal-overlay" id="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title" aria-hidden="true">
   <div class="modal">
     <div class="modal-header">
       <h2 class="modal-title" id="modal-title">Summary</h2>
