@@ -123,9 +123,9 @@ def reason_over_context(question: str, context_chunks: list[str]) -> str:
 
     context = "\n\n---\n\n".join(context_chunks)
     system_instruction = (
-        "Answer the clinician's question using the provided context chunks. "
-        "If the context doesn't contain enough information, answer as best as possible "
-        "based on the available data."
+        "Answer the clinician's question using only the provided context chunks. "
+        "Do not invent patient facts, values, dates, diagnoses, or treatments. "
+        "If the context is insufficient, say which information is missing rather than guessing."
     )
     prompt = f"Context:\n{context}\n\nQuestion: {question}"
     return _generate(prompt, system_instruction=system_instruction)
