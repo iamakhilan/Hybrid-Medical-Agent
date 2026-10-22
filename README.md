@@ -268,6 +268,109 @@ python -m local_mcp_server.server
 
 It uses stdio, so it expects to be controlled by an MCP client rather than queried directly with a browser or `curl`.
 
+## 🐳 Docker Compose
+
+The repository includes a Docker image and a two-service Compose setup. The API container starts the local MCP server as a subprocess and stores SQLite data plus original uploads in a named volume. The cloud MCP server runs separately and is reached over the Compose network.
+
+### Prerequisites
+
+- Docker Desktop (Windows/macOS) or Docker Engine + the Docker Compose plugin.
+- A \`.env\` file at the repository root. Start from the template and add your own Gemini/Qdrant settings:
+
+\`\`\`powershell
+Copy-Item .env.example .env
+\`\`\`
+
+Set \`GEMINI_API_KEY\`, \`QDRANT_URL\`, and \`QDRANT_API_KEY\` if you want cloud-backed retrieval. Local cache features can still be tested without those credentials, but cloud ingestion will not work.
+
+### Build and run
+
+\`\`\`bash
+docker compose up --build -d
+docker compose ps
+docker compose logs -f api cloud-mcp
+\`\`\`
+
+Open the UI at [http://127.0.0.1:7860](http://127.0.0.1:7860). The API is bound to loopback on the host by default. Stop the stack with:
+
+\`\`\`bash
+docker compose down
+\`\`\`
+
+The named \`medical-agent-data\` volume persists the local SQLite database and uploaded source files across container recreation. To intentionally delete that data as well, use \`docker compose down -v\` (destructive).
+
+Useful checks:
+
+\`\`\`bash
+docker compose ps
+docker compose logs --tail=100 api
+docker compose exec api python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:7860/api/health').read().decode())"
+\`\`\`
+
+The optional GGUF model is not copied into the image. If you use one, configure and mount its path deliberately; do not bake large model files into the container image.
+
+## ☸️ Kubernetes (local learning deployment)
+
+Manifests in \`k8s/\` deploy the cloud MCP server and API into a dedicated namespace. The API uses a PersistentVolumeClaim for SQLite and original uploads. Both Services are \`ClusterIP\`; the API is not exposed publicly by default.
+
+### 1. Build an image available to your local cluster
+
+From the repository root:
+
+\`\`\`bash
+docker build -t hybrid-medical-agent:local .
+\`\`\`
+
+The Kubernetes cluster must be able to access that image. For **Minikube**, run \`minikube image load hybrid-medical-agent:local\`; for **kind**, run \`kind load docker-image hybrid-medical-agent:local\`. For a remote cluster, push the image to a registry and update the image field in both deployment manifests.
+
+### 2. Create secrets
+
+Create the namespace first, then add credentials without committing them to YAML:
+
+\`\`\`bash
+kubectl apply -f k8s/namespace.yaml
+kubectl -n hybrid-medical-agent create secret generic hybrid-medical-agent-secrets \\
+  --from-literal=GEMINI_API_KEY='YOUR_GEMINI_API_KEY' \\
+  --from-literal=QDRANT_URL='YOUR_QDRANT_URL' \\
+  --from-literal=QDRANT_API_KEY='YOUR_QDRANT_API_KEY'
+\`\`\`
+
+If you do not use a Qdrant API key, set its value to an empty string. Keep real secrets out of shell history where possible and never commit them.
+
+### 3. Deploy
+
+\`\`\`bash
+kubectl apply -f k8s/configmap.yaml
+kubectl apply -f k8s/cloud-mcp.yaml
+kubectl apply -f k8s/api.yaml
+kubectl -n hybrid-medical-agent get pods,services,pvc
+kubectl -n hybrid-medical-agent rollout status deployment/cloud-mcp
+kubectl -n hybrid-medical-agent rollout status deployment/medical-agent-api
+\`\`\`
+
+Open the local UI through a port-forward:
+
+\`\`\`bash
+kubectl -n hybrid-medical-agent port-forward service/medical-agent-api 7860:7860
+\`\`\`
+
+Then visit [http://127.0.0.1:7860](http://127.0.0.1:7860). To inspect logs:
+
+\`\`\`bash
+kubectl -n hybrid-medical-agent logs deployment/medical-agent-api
+kubectl -n hybrid-medical-agent logs deployment/cloud-mcp
+\`\`\`
+
+Clean up the workloads with \`kubectl delete namespace hybrid-medical-agent\`. Depending on the cluster's storage reclaim policy, persistent data may remain in the underlying storage after deleting the namespace.
+
+### Deployment and privacy notes
+
+- This is a learning/dev configuration, not a production-ready medical deployment. Authentication and authorization are not configured; keep the API on localhost or behind an authenticated gateway.
+- Use synthetic or properly de-identified documents for experiments. The local volume/PVC contains uploaded source files and extracted patient text; restrict access and configure encrypted storage/backups for any authorized sensitive data.
+- The cloud MCP server's TCP probe only checks that the port accepts connections; it does not validate Gemini or Qdrant credentials.
+- The Kubernetes PVC requests 2 GiB and uses the cluster's default StorageClass. A cluster without dynamic persistent-volume provisioning will need a suitable PV/StorageClass.
+- The included Kubernetes manifests are starter manifests. Review resource sizing, storage, secret management, network policy, TLS, and observability before any shared deployment.
+
 ## 📊 Evaluation reported by the project
 
 The accompanying EdgeAgentDoc report evaluates the offline/local path and routing logic using a **synthetic patient record** and a set of 20 authored questions. These figures are from that report, not a claim of clinical validation or live cloud performance.
