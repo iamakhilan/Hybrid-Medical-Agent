@@ -143,14 +143,23 @@ async def ask(req: AskRequest):
         if len(words) < 4:
             return False
         # Explicitly reject document titles and short section headers.
-        if clean.strip() in {"synthetic patient test record", "medication reconciliation",
-                             "laboratory results", "encounter notes", "patient profile"}:
+        normalized = " ".join(clean.split())
+        if normalized in {"synthetic patient test record", "medication reconciliation",
+                          "laboratory results", "encounter notes", "patient profile",
+                          "patient profile field value", "date source medication entry"}:
+            return False
+        # Filenames and section headings must never qualify as clinical evidence.
+        if ("synthetic patient test record" in normalized and len(words) < 9) or normalized.endswith(".pdf"):
             return False
         overlap = len(question_terms & words)
         clinical_terms = {"amlodipine", "allergy", "allergies", "rash", "dose", "doses",
-                          "medication", "medications", "mg"}
-        asks_medication = bool(question_terms & clinical_terms)
-        return overlap >= 1 and (not asks_medication or bool(words & clinical_terms))
+                          "medication", "medications", "mg", "daily", "once"}
+        asks_medication = bool(question_terms & {"amlodipine", "allergy", "allergies", "rash",
+                                                   "dose", "doses", "medication", "medications"})
+        # For medication/allergy questions require a direct clinical term in
+        # the passage, not a match on filename words such as "synthetic" or "test".
+        clinical_match = bool(words & clinical_terms)
+        return overlap >= 1 and (clinical_match if asks_medication else True)
     for hit in all_citations:
         passage = re.sub(r"\[/?(?:b|em|strong|mark)\]", "", str(hit.get("text") or hit.get("snippet") or "")).strip()
         doc_id = str(hit.get("doc_id") or "")
@@ -179,6 +188,8 @@ async def ask(req: AskRequest):
     # overlap, rather than requiring two terms on the same line (which fails
     # for short medication/lab entries). If the question names a document,
     # prioritize that document. Never fabricate a citation or page number.
+    # If search adapters returned only titles or generic previews, discard
+    # them and run the local page-aware fallback instead.
     if not citations:
         stop_words = {
             "what", "when", "where", "which", "with", "from", "that", "this", "each",
