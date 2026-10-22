@@ -242,9 +242,9 @@ async def ask(req: AskRequest):
                                    if re.search(r"(?i)amlodipine|allerg|rash", item["passage"])]
             if medication_passages:
                 answer_text = (
-                    "The cached record contains these relevant medication/allergy entries:\\n\\n"
-                    + "\\n".join(f"- {passage}" for passage in medication_passages[:req.top_k])
-                    + "\\n\\nThese are excerpts from a fictional test record. The entries show different "
+                    "The cached record contains these relevant medication/allergy entries:\n\n"
+                    + "\n".join(f"- {passage}" for passage in medication_passages[:req.top_k])
+                    + "\n\nThese are excerpts from a fictional test record. The entries show different "
                     "documented doses and a possible rash entry; they do not establish which dose is correct "
                     "or determine treatment. A clinician should reconcile the original records."
                 )
