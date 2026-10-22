@@ -100,10 +100,24 @@ document.querySelectorAll('.nav-btn').forEach(btn => {
 
 function switchPanel(name) {
   activePanel = name;
-  document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.panel === name));
-  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === `panel-${name}`));
+
+  document.querySelectorAll('.nav-btn').forEach(btn => {
+    const isActive = btn.dataset.panel === name;
+    btn.classList.toggle('active', isActive);
+
+    if (isActive) {
+      btn.setAttribute('aria-current', 'page');
+    } else {
+      btn.removeAttribute('aria-current');
+    }
+  });
+
+  document.querySelectorAll('.panel').forEach(panel => {
+    panel.classList.toggle('active', panel.id === `panel-${name}`);
+  });
+
   topbarTitle.textContent = panelTitles[name].title;
-  topbarSub.textContent   = panelTitles[name].sub;
+  topbarSub.textContent = panelTitles[name].sub;
 }
 
 // ----------------------------------------------------------------
