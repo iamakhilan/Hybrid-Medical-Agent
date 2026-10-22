@@ -194,8 +194,31 @@ async def ask(req: AskRequest):
                               "chunk_index": -1, "passage": passage, "score": float(score)})
             if len(citations) >= req.top_k:
                 break
+    # The local extractive fallback can return a raw "Based on N cached
+    # documents" snippet list instead of answering the question. Don't expose
+    # that retrieval debug text as if it were a clinical answer.
+    answer_text = response.merged_text.strip()
+    looks_like_retrieval_dump = (
+        re.search(r"(?i)^based on \\d+ cached local document", answer_text) is not None
+        or ("cached local document" in answer_text.lower()
+            and re.search(r"(?m)^-\\s*\\[", answer_text) is not None)
+    )
+    if looks_like_retrieval_dump:
+        if citations:
+            answer_text = (
+                "I found potentially relevant passages in the cached records. "
+                "The snippets below are source evidence, not a verified clinical conclusion. "
+                "Review the cited records before making decisions."
+            )
+        else:
+            answer_text = (
+                "I couldn't retrieve a usable supporting passage for this question. "
+                "The cached-document search returned only document previews, so this answer "
+                "is unverified. Try opening the document in Documents or re-uploading it."
+            )
+
     return AskResponse(
-        answer=response.merged_text,
+        answer=answer_text,
         used_cloud=response.used_cloud,
         local=SourceInfo(
             ok=response.local.ok,
