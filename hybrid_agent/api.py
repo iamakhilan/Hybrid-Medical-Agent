@@ -116,17 +116,74 @@ async def ask(req: AskRequest):
     raw_citations = await agent.search_cloud_sources(req.question, top_k=req.top_k)
     local_citations = await agent.search_local_sources(req.question, top_k=req.top_k)
     all_citations = raw_citations + local_citations
-    citations = [
-        {
-            "doc_id": str(hit.get("doc_id", "")),
-            "title": str(hit.get("title") or hit.get("doc_id") or "Source document"),
-            "page_number": hit.get("page_number"),
+    citations = []
+    seen_citations = set()
+    for hit in all_citations:
+        passage = re.sub(r"\\[/?(?:b|em|strong|mark)\\]", "", str(hit.get("text") or hit.get("snippet") or "")).strip()
+        doc_id = str(hit.get("doc_id") or "")
+        title = str(hit.get("title") or doc_id or "Source document")
+        if not passage or not doc_id:
+            continue
+        page_number = hit.get("page_number")
+        if isinstance(page_number, str) and page_number.isdigit():
+            page_number = int(page_number)
+        if not isinstance(page_number, int) or page_number < 1:
+            page_number = None
+        key = (doc_id.casefold(), re.sub(r"\\W+", " ", passage).casefold()[:240])
+        if key in seen_citations:
+            continue
+        seen_citations.add(key)
+        citations.append({
+            "doc_id": doc_id,
+            "title": title,
+            "page_number": page_number,
             "chunk_index": int(hit.get("chunk_index", -1)),
-            "passage": str(hit.get("text") or hit.get("snippet") or ""),
-            "score": float(hit.get("score", 0.0)),
-        }
-        for hit in all_citations if str(hit.get("text") or hit.get("snippet") or "").strip()
-    ]
+            "passage": passage,
+            "score": float(hit.get("score", 0.0) or 0.0),
+        })
+
+    # Local keyword fallback: if both retrieval adapters return no usable
+    # citations, search cached document text for query terms and cite exact
+    # matching lines. This prevents a document-list preview being mistaken
+    # for evidence and never fabricates a page number.
+    if not citations:
+        stop_words = {"what", "when", "where", "which", "with", "from", "that", "this", "each",
+                      "does", "have", "has", "are", "the", "and", "for", "into", "about", "patient",
+                      "document", "documents", "record", "records", "please", "find", "list", "show",
+                      "source", "page", "pages", "answer", "evidence", "based", "only", "return"}
+        terms = {w.lower() for w in re.findall(r"[A-Za-z0-9]+", req.question) if len(w) > 2 and w.lower() not in stop_words}
+        documents = await agent.list_cached_documents(limit=200)
+        for doc in documents:
+            stored = await agent.get_cached_document_page_text(doc["doc_id"])
+            if not stored.ok:
+                continue
+            marked = stored.text
+            page_matches = list(re.finditer(r"\\[\\[PAGE:(\\d+)\\]\\]", marked))
+            segments = []
+            if page_matches:
+                for i, marker in enumerate(page_matches):
+                    end = page_matches[i + 1].start() if i + 1 < len(page_matches) else len(marked)
+                    segments.append((int(marker.group(1)), marked[marker.end():end]))
+            else:
+                segments.append((None, marked))
+            for page, body in segments:
+                for line in body.splitlines():
+                    line = line.strip()
+                    line_terms = {w.lower() for w in re.findall(r"[A-Za-z0-9]+", line) if len(w) > 2}
+                    overlap = len(terms & line_terms)
+                    if overlap >= 2 and len(line) >= 25:
+                        key = (str(doc["doc_id"]).casefold(), re.sub(r"\\W+", " ", line).casefold()[:240])
+                        if key in seen_citations:
+                            continue
+                        seen_citations.add(key)
+                        citations.append({"doc_id": str(doc["doc_id"]), "title": str(doc.get("title") or doc["doc_id"]),
+                                          "page_number": page, "chunk_index": -1, "passage": line, "score": float(overlap)})
+                        if len(citations) >= req.top_k:
+                            break
+                if len(citations) >= req.top_k:
+                    break
+            if len(citations) >= req.top_k:
+                break
     return AskResponse(
         answer=response.merged_text,
         used_cloud=response.used_cloud,
