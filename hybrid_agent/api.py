@@ -187,7 +187,7 @@ async def upload_document(
     # creating a new duplicate each time.
     safe_name = re.sub(r"[^a-zA-Z0-9_-]", "_", Path(file.filename or "doc").stem)
     doc_id = safe_name
-    doc_title = title.strip() or Path(file.filename or "Untitled").stem
+    doc_title = title.strip() or Path(file.filename or "Untitled").name
 
     # Keep the original upload locally so evidence citations can open the source.
     # This folder stays alongside the local cache and is not served as a directory.
@@ -201,7 +201,7 @@ async def upload_document(
 
     # Cache locally (always)
     local_res = await agent.cache_document_locally(
-        doc_id=doc_id, title=doc_title, content=text, page_content=page_content
+        doc_id=doc_id, title=doc_title, content=text, page_content=page_content, source=filename
     )
 
     # Ingest to cloud (best-effort)
@@ -222,15 +222,23 @@ async def list_documents(limit: int = 50):
     """List all documents currently cached in the local SQLite store."""
     agent = get_agent()
     rows = await agent.list_cached_documents(limit=limit)
-    return [
-        DocumentInfo(
-            doc_id=r["doc_id"],
-            title=r["title"],
-            source=r["source"],
-            created_at=r["created_at"],
+    docs = []
+    for r in rows:
+        source = r.get("source", "local")
+        if source == "local":
+            for ext in (".pdf", ".txt", ".md"):
+                if (_SOURCE_DIR / f"{r['doc_id']}{ext}").is_file():
+                    source = f"{r['doc_id']}{ext}"
+                    break
+        docs.append(
+            DocumentInfo(
+                doc_id=r["doc_id"],
+                title=r["title"],
+                source=source,
+                created_at=r["created_at"],
+            )
         )
-        for r in rows
-    ]
+    return docs
 
 
 @app.get("/api/timeline", tags=["Clinical records"])

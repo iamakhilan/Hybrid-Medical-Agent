@@ -328,7 +328,7 @@ async function handleUpload(file) {
 
   const formData = new FormData();
   formData.append('file', file);
-  formData.append('title', file.name.replace(/\.[^.]+$/, ''));
+  formData.append('title', file.name);
 
   try {
     progressBar.style.width = '60%';
@@ -350,9 +350,27 @@ async function handleUpload(file) {
     setTimeout(() => {
       uploadProgress.classList.remove('visible');
       progressBar.style.width = '0%';
-    }, 2000);
+    }, 1500);
 
-    showToast('success', `"${data.title}" uploaded successfully`);
+    // Show persistent upload success card
+    const successCard = document.getElementById('upload-success-card');
+    const successName = document.getElementById('upload-success-name');
+    const successDetail = document.getElementById('upload-success-detail');
+    const askNowBtn = document.getElementById('upload-ask-now-btn');
+    if (successCard && successName) {
+      successName.textContent = file.name;
+      successDetail.textContent = `Cached locally (${(file.size / 1024).toFixed(1)} KB) · Ready for clinical Q&A`;
+      successCard.classList.remove('hidden');
+      if (askNowBtn) {
+        askNowBtn.onclick = () => {
+          switchPanel('chat');
+          chatInput.focus();
+          chatInput.placeholder = `Ask a question about ${file.name}…`;
+        };
+      }
+    }
+
+    showToast('success', `"${data.title || file.name}" uploaded successfully`);
     await loadDocuments();
   } catch (err) {
     uploadProgress.classList.remove('visible');
@@ -371,6 +389,14 @@ async function loadDocuments() {
   } catch { /* silently fail if backend isn't ready */ }
 }
 
+function getDocExtension(doc) {
+  const combined = `${doc.title || ''} ${doc.source || ''} ${doc.doc_id || ''}`.toLowerCase();
+  if (combined.includes('.pdf') || combined.endsWith('pdf')) return 'pdf';
+  if (combined.includes('.txt') || combined.endsWith('txt')) return 'txt';
+  if (combined.includes('.md') || combined.endsWith('md')) return 'md';
+  return '';
+}
+
 function renderDocuments() {
   const query = (docSearch?.value || '').trim().toLowerCase();
   const type = docTypeFilter?.value || 'all';
@@ -378,9 +404,9 @@ function renderDocuments() {
   const filtered = documents.filter(doc => {
     const title = String(doc.title || '');
     const source = String(doc.source || '');
-    const matchesQuery = !query || title.toLowerCase().includes(query) || source.toLowerCase().includes(query);
-    const extensionMatch = `${title} ${source}`.match(/\.(pdf|txt|md)(?:\b|$)/i);
-    const extension = extensionMatch ? extensionMatch[1].toLowerCase() : '';
+    const docId = String(doc.doc_id || '');
+    const matchesQuery = !query || title.toLowerCase().includes(query) || source.toLowerCase().includes(query) || docId.toLowerCase().includes(query);
+    const extension = getDocExtension(doc);
     const matchesType = type === 'all' || extension === type;
     return matchesQuery && matchesType;
   });
@@ -414,8 +440,8 @@ function renderDocuments() {
       : 'Date unavailable';
     const source = String(doc.source || 'Document');
     const title = String(doc.title || 'Untitled document');
-    const extensionMatch = `${title} ${source}`.match(/\.(pdf|txt|md)(?:\b|$)/i);
-    const extension = extensionMatch ? extensionMatch[1].toUpperCase() : 'FILE';
+    const ext = getDocExtension(doc);
+    const extension = ext ? ext.toUpperCase() : 'DOC';
     const card = document.createElement('article');
     card.className = 'doc-card';
     const header = document.createElement('div');

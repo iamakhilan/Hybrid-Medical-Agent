@@ -535,6 +535,57 @@ svg { display: block; }
   transition: width 0.3s ease;
 }
 
+.upload-success-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  padding: 12px 18px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  animation: fadeUp 0.3s ease;
+}
+
+.upload-success-card.hidden { display: none !important; }
+
+.upload-success-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.upload-success-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent-soft-2);
+  color: var(--accent-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.upload-success-filename {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.upload-success-meta {
+  font-size: 11.5px;
+  color: var(--ink-soft);
+}
+
+.upload-success-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 /* Doc list */
 .docs-list-header { display: flex; align-items: center; justify-content: space-between; }
 
