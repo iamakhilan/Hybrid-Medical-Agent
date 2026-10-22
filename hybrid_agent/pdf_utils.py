@@ -23,7 +23,7 @@ def extract_pages(filename: str, file_bytes: bytes) -> list[str]:
         except ImportError as exc:
             raise ValueError("pypdf is not installed. Run: pip install pypdf") from exc
         reader = PdfReader(io.BytesIO(file_bytes))
-        pages = [(page.extract_text() or "").strip() for page in reader.pages]
+        pages = [(page.extract_text() or "").strip() or f"[Page {i + 1}: no extractable text — may be a scanned image]" for i, page in enumerate(reader.pages)]
         if not pages:
             raise ValueError("PDF has no pages or no extractable text.")
         return pages

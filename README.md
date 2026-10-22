@@ -295,6 +295,19 @@ The tests cover cloud-answer preference, local-preview inclusion, fallback when 
 
 ## 🖥️ Using the Web UI
 
+### Evidence-linked answers
+
+When the cloud retrieval path returns source chunks, Q&A responses include expandable evidence cards with the source document title, PDF page number when available, and retrieved passage. Page numbers are retained as metadata during PDF extraction and cloud chunk ingestion. Text files are treated as a single page. Evidence cards show retrieved passages; they do not guarantee that every sentence in a generated answer is fully supported. If the cloud retrieval path is unavailable, the UI explicitly indicates that source passages were not returned.
+
+### Medical timeline and safety review
+
+The Documents workspace includes two opt-in tools:
+- **Build medical timeline** extracts recognizable dated lines containing clinical terms and labels them as lab results, medications, allergies, diagnoses, or clinical notes when the wording supports that label. Each event retains its source document and page where available.
+- **Check for discrepancies** uses transparent pattern-based heuristics to flag possible medication-dose conflicts, allergy-record conflicts, differing lab units, numeric lab values without a detected unit, clinical details without a recognizable date, and medication-related entries older than one year.
+
+These checks are review aids, not a medical reasoning system. They can miss issues or flag false positives; they never choose which record is correct and do not make diagnoses or treatment recommendations. Review each passage against the original record. Existing cached documents are supported; old cache entries without page metadata show page unavailable.
+
+
 ### Clinical Q&A
 Ask questions about documents in the knowledge base—for example, requests for relevant lab values, medication history, diagnosis timelines, or abnormal findings. The UI displays the selected answer and reports local/cloud status.
 
@@ -316,6 +329,8 @@ The FastAPI application exposes the following endpoints:
 | `POST` | `/api/ask` | Ask a question using hybrid retrieval |
 | `POST` | `/api/documents` | Upload and ingest a PDF/text document |
 | `GET` | `/api/documents` | List documents in the local SQLite cache |
+| `GET` | `/api/timeline` | Extract dated, source-linked clinical events from cached records |
+| `GET` | `/api/safety-check` | Flag possible cross-record inconsistencies for human review |
 | `POST` | `/api/summarize` | Summarize document text or a cached document |
 | `POST` | `/api/analyze` | Analyze document text against a question |
 | `GET` | `/docs` | Interactive OpenAPI / Swagger UI |
