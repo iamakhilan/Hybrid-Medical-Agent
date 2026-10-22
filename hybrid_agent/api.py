@@ -157,7 +157,7 @@ async def upload_document(
         raise HTTPException(status_code=413, detail="File exceeds the 20 MB upload limit.")
 
     try:
-        text = extract_text(filename, file_bytes)
+        text = extract_text(filename, bytes(file_bytes))
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
 
