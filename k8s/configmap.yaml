@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hybrid-medical-agent-config
+  namespace: hybrid-medical-agent
+data:
+  GEMINI_MODEL: "gemini-2.5-flash"
+  GEMINI_EMBEDDING_MODEL: "text-embedding-004"
+  GEMINI_EMBEDDING_DIM: "768"
+  QDRANT_COLLECTION: "medical_documents"
+  CLOUD_MCP_HOST: "0.0.0.0"
+  CLOUD_MCP_PORT: "8000"
+  CLOUD_SERVER_URL: "http://cloud-mcp:8000/mcp"
+  CLOUD_TIMEOUT_SECONDS: "20"
+  HYBRID_DEFAULT_TOP_K: "5"
+  UI_HOST: "0.0.0.0"
+  UI_PORT: "7860"
+  LOCAL_DB_PATH: "/data/local_cache.db"
