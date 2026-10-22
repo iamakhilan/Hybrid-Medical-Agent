@@ -80,6 +80,10 @@ const modalTitle      = document.getElementById('modal-title');
 const modalBody       = document.getElementById('modal-body');
 const topbarTitle     = document.getElementById('topbar-title');
 const topbarSub       = document.getElementById('topbar-sub');
+const topbarHealth    = document.getElementById('topbar-health');
+const topbarHealthText = document.getElementById('topbar-health-text');
+const docSearch       = document.getElementById('doc-search');
+const chatCharCount   = document.getElementById('chat-char-count');
 
 // ----------------------------------------------------------------
 // Navigation
@@ -140,6 +144,16 @@ function setStatus(dot, label, ok, message) {
   dot.className = 'status-dot ' + (ok ? 'ok' : 'error');
   dot.title = message;
   label.textContent = ok ? 'Online' : 'Offline';
+
+  const localOk = localDot.classList.contains('ok');
+  const cloudOk = cloudDot.classList.contains('ok');
+  topbarHealth.classList.toggle('all-ok', localOk && cloudOk);
+  topbarHealth.classList.toggle('has-error', !localOk || !cloudOk);
+  topbarHealthText.textContent = localOk && cloudOk
+    ? 'All services online'
+    : localOk || cloudOk
+      ? 'Service partially available'
+      : 'Services unavailable';
 }
 
 // ----------------------------------------------------------------
@@ -234,7 +248,11 @@ chatInput.addEventListener('keydown', e => {
   }
 });
 
-chatInput.addEventListener('input', () => autoResize(chatInput));
+chatInput.addEventListener('input', () => {
+  if (chatInput.value.length > 4000) chatInput.value = chatInput.value.slice(0, 4000);
+  autoResize(chatInput);
+  chatCharCount.textContent = `${chatInput.value.length} / 4000`;
+});
 
 function autoResize(el) {
   el.style.height = 'auto';
@@ -270,9 +288,14 @@ fileInput.addEventListener('change', () => {
 
 async function handleUpload(file) {
   const allowed = ['.pdf', '.txt', '.md'];
+  const maxBytes = 20 * 1024 * 1024;
   const ext = '.' + file.name.split('.').pop().toLowerCase();
   if (!allowed.includes(ext)) {
     showToast('error', 'Unsupported file type. Use PDF, TXT, or MD.');
+    return;
+  }
+  if (file.size > maxBytes) {
+    showToast('error', 'This file is larger than 20 MB. Choose a smaller document.');
     return;
   }
 
@@ -327,7 +350,15 @@ async function loadDocuments() {
 }
 
 function renderDocuments() {
-  docCount.textContent = documents.length;
+  const query = (docSearch?.value || '').trim().toLowerCase();
+  const visibleDocuments = query
+    ? documents.filter(doc =>
+        String(doc.title || '').toLowerCase().includes(query) ||
+        String(doc.source || '').toLowerCase().includes(query)
+      )
+    : documents;
+
+  docCount.textContent = query ? `${visibleDocuments.length} / ${documents.length}` : documents.length;
 
   if (documents.length === 0) {
     docsGrid.classList.add('hidden');
@@ -335,11 +366,19 @@ function renderDocuments() {
     return;
   }
 
+  if (visibleDocuments.length === 0) {
+    docsGrid.classList.add('hidden');
+    docsEmpty.classList.remove('hidden');
+    docsEmpty.querySelector('p').textContent = 'No documents match your search.';
+    return;
+  }
+
+  docsEmpty.querySelector('p').textContent = 'No documents cached yet. Upload a PDF or text file above to get started.';
   docsEmpty.classList.add('hidden');
   docsGrid.classList.remove('hidden');
   docsGrid.innerHTML = '';
 
-  documents.forEach(doc => {
+  visibleDocuments.forEach(doc => {
     const date = new Date(doc.created_at * 1000).toLocaleDateString('en-IN', {
       day: 'numeric', month: 'short', year: 'numeric'
     });
@@ -366,6 +405,8 @@ function renderDocuments() {
     docsGrid.appendChild(card);
   });
 }
+
+docSearch?.addEventListener('input', renderDocuments);
 
 function updateAnalyzeSelect() {
   const current = analyzeDocSel.value;
@@ -505,6 +546,12 @@ document.getElementById('modal-close').addEventListener('click', () => {
 
 modalOverlay.addEventListener('click', e => {
   if (e.target === modalOverlay) modalOverlay.classList.remove('visible');
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && modalOverlay.classList.contains('visible')) {
+    modalOverlay.classList.remove('visible');
+  }
 });
 
 // ----------------------------------------------------------------
