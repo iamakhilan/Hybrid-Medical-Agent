@@ -114,16 +114,18 @@ async def ask(req: AskRequest):
     agent = get_agent()
     response = await agent.ask(req.question, top_k=req.top_k)
     raw_citations = await agent.search_cloud_sources(req.question, top_k=req.top_k)
+    local_citations = await agent.search_local_sources(req.question, top_k=req.top_k)
+    all_citations = raw_citations + local_citations
     citations = [
         {
             "doc_id": str(hit.get("doc_id", "")),
             "title": str(hit.get("title") or hit.get("doc_id") or "Source document"),
             "page_number": hit.get("page_number"),
             "chunk_index": int(hit.get("chunk_index", -1)),
-            "passage": str(hit.get("text", "")),
+            "passage": str(hit.get("text") or hit.get("snippet") or ""),
             "score": float(hit.get("score", 0.0)),
         }
-        for hit in raw_citations if str(hit.get("text", "")).strip()
+        for hit in all_citations if str(hit.get("text") or hit.get("snippet") or "").strip()
     ]
     return AskResponse(
         answer=response.merged_text,

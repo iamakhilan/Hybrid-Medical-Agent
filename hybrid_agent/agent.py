@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 import time
 from contextlib import AsyncExitStack
 from dataclasses import dataclass, field
@@ -257,6 +258,43 @@ class HybridAgent:
             return payload if isinstance(payload, list) else []
         except (json.JSONDecodeError, TypeError):
             return []
+
+    async def search_local_sources(self, query: str, top_k: int = 5) -> list[dict]:
+        """Return local retrieval snippets with best-effort page provenance."""
+        result = await self._call_local("search_local_cache", {"query": query, "top_k": top_k})
+        if not result.ok or not result.text.strip():
+            return []
+        try:
+            hits = json.loads(result.text)
+        except (json.JSONDecodeError, TypeError):
+            return []
+        if not isinstance(hits, list):
+            return []
+        sources = []
+        for hit in hits:
+            doc_id = str(hit.get("doc_id", ""))
+            snippet = str(hit.get("snippet", ""))
+            page_number = None
+            if doc_id:
+                page_result = await self.get_cached_document_page_text(doc_id)
+                if page_result.ok:
+                    marked_text = page_result.text
+                    markers = list(re.finditer(r"\[\[PAGE:(\d+)\]\]", marked_text))
+                    if markers:
+                        terms = {word.lower() for word in re.findall(r"[A-Za-z0-9]+", re.sub(r"\[/?\w+\]", " ", snippet)) if len(word) > 2}
+                        best_score = 0
+                        for index, marker in enumerate(markers):
+                            end = markers[index + 1].start() if index + 1 < len(markers) else len(marked_text)
+                            page_words = {word.lower() for word in re.findall(r"[A-Za-z0-9]+", marked_text[marker.end():end])}
+                            score = len(terms & page_words)
+                            if score > best_score:
+                                best_score, page_number = score, int(marker.group(1))
+            sources.append({
+                "doc_id": doc_id, "title": str(hit.get("title") or doc_id),
+                "page_number": page_number, "chunk_index": -1,
+                "text": snippet, "score": float(hit.get("score", 0.0)),
+            })
+        return sources
 
     async def health_check(self) -> tuple[SourceResult, SourceResult]:
         local = await self._call_local("local_health_check", {})
