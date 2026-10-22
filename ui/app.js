@@ -194,9 +194,21 @@ function addMessage(role, content, meta = null) {
          </span>`
       : '';
 
+    const citations = Array.isArray(meta?.citations) ? meta.citations : [];
+    const citationHtml = citations.length ? `
+      <section class="evidence-list" aria-label="Retrieved source evidence">
+        <h4>Retrieved evidence <span>${citations.length} source chunks</span></h4>
+        ${citations.map((citation, index) => `
+          <details class="evidence-card">
+            <summary><span class="evidence-index">${index + 1}</span><span class="evidence-source">${escHtml(citation.title || 'Source document')}</span><span class="evidence-page">${citation.page_number ? 'Page ' + escHtml(citation.page_number) : 'Page unavailable'}</span></summary>
+            <blockquote>${escHtml(citation.passage || '')}</blockquote>
+            <small>Chunk ${escHtml(citation.chunk_index ?? '—')} · Retrieved passage; verify against the original record.</small>
+          </details>`).join('')}
+      </section>` : '<p class="evidence-unavailable">No retrieved source passages were returned for this answer. Verify details against the original records.</p>';
     el.innerHTML = `
       <div class="msg-bubble">${renderMarkdownLite(content)}</div>
       <div class="msg-meta">${sourceBadge}${latency}</div>
+      ${citationHtml}
     `;
   }
 
@@ -672,4 +684,60 @@ document.querySelectorAll('[data-copy-target]').forEach(button => {
       showToast('error', 'Clipboard access is unavailable in this browser. Select the result text and copy it manually.');
     }
   });
+});
+
+
+// Source-linked clinical timeline and record discrepancy review.
+const timelineButton = document.getElementById('load-timeline-btn');
+const safetyButton = document.getElementById('run-safety-check-btn');
+const timelineResults = document.getElementById('timeline-results');
+const safetyResults = document.getElementById('safety-results');
+
+function sourceLine(item) {
+  return `${escHtml(item.source_title || item.title || item.doc_id || 'Source record')}${item.page_number ? ' · Page ' + escHtml(item.page_number) : ' · Page not available'}`;
+}
+function renderSourcePassage(item) {
+  return `<details class="record-source"><summary>${sourceLine(item)}</summary><blockquote>${escHtml(item.passage || item.description || '')}</blockquote></details>`;
+}
+timelineButton?.addEventListener('click', async () => {
+  timelineButton.disabled = true;
+  timelineButton.textContent = 'Building timeline…';
+  timelineResults.innerHTML = '<p class="record-loading">Extracting dated events from cached records…</p>';
+  try {
+    const response = await fetch(`${API}/api/timeline`);
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.detail || 'Could not build timeline.');
+    if (!data.events.length) {
+      timelineResults.innerHTML = '<p class="record-empty">No clearly dated clinical events were detected. Add dated records or check that the uploaded text is extractable.</p>';
+      return;
+    }
+    timelineResults.innerHTML = `<h3>Medical timeline <span>${data.events.length} events · ${data.document_count} records</span></h3><ol class="medical-timeline">${data.events.map(event => `
+      <li class="timeline-event"><div class="timeline-event-top"><time>${escHtml(event.date)}</time><span class="timeline-category">${escHtml(event.category)}</span></div><p>${escHtml(event.description)}</p>${renderSourcePassage({source_title:event.source_title,page_number:event.page_number,description:event.description})}</li>`).join('')}</ol>`;
+  } catch (error) {
+    timelineResults.innerHTML = `<p class="record-error">${escHtml(error.message || 'Timeline request failed.')}</p>`;
+  } finally {
+    timelineButton.disabled = false;
+    timelineButton.textContent = 'Build medical timeline';
+  }
+});
+safetyButton?.addEventListener('click', async () => {
+  safetyButton.disabled = true;
+  safetyButton.textContent = 'Checking records…';
+  safetyResults.innerHTML = '<p class="record-loading">Comparing medication, allergy, date, and lab context…</p>';
+  try {
+    const response = await fetch(`${API}/api/safety-check`);
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.detail || 'Could not check records.');
+    if (!data.findings.length) {
+      safetyResults.innerHTML = '<p class="record-empty">No potential discrepancies were detected by the current checks. This does not establish that the records are complete or consistent.</p>';
+      return;
+    }
+    safetyResults.innerHTML = `<h3>Potential discrepancies <span>${data.findings.length} flags · ${data.document_count} records</span></h3><div class="safety-findings">${data.findings.map(finding => `
+      <article class="safety-finding"><div class="safety-finding-head"><span class="safety-flag">${finding.severity === 'high_review' ? 'Priority review' : 'Review'}</span><h4>${escHtml(finding.title)}</h4></div><p>${escHtml(finding.message)}</p>${(finding.mentions || [finding]).map(renderSourcePassage).join('')}</article>`).join('')}</div>`;
+  } catch (error) {
+    safetyResults.innerHTML = `<p class="record-error">${escHtml(error.message || 'Safety check failed.')}</p>`;
+  } finally {
+    safetyButton.disabled = false;
+    safetyButton.textContent = 'Check for discrepancies';
+  }
 });

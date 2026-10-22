@@ -39,7 +39,8 @@ from hybrid_agent.api_models import (
     SummarizeRequest,
     TextResponse,
 )
-from hybrid_agent.pdf_utils import extract_text
+from hybrid_agent.pdf_utils import extract_pages
+from hybrid_agent.clinical_records import build_timeline, detect_contradictions
 
 # ---------------------------------------------------------------------------
 # Application lifecycle — one HybridAgent for the entire server lifetime
@@ -109,6 +110,18 @@ async def ask(req: AskRequest):
     """Ask a clinical question. Fires local + cloud in parallel and returns the merged answer."""
     agent = get_agent()
     response = await agent.ask(req.question, top_k=req.top_k)
+    raw_citations = await agent.search_cloud_sources(req.question, top_k=req.top_k)
+    citations = [
+        {
+            "doc_id": str(hit.get("doc_id", "")),
+            "title": str(hit.get("title") or hit.get("doc_id") or "Source document"),
+            "page_number": hit.get("page_number"),
+            "chunk_index": int(hit.get("chunk_index", -1)),
+            "passage": str(hit.get("text", "")),
+            "score": float(hit.get("score", 0.0)),
+        }
+        for hit in raw_citations if str(hit.get("text", "")).strip()
+    ]
     return AskResponse(
         answer=response.merged_text,
         used_cloud=response.used_cloud,
@@ -123,6 +136,7 @@ async def ask(req: AskRequest):
             error=response.cloud.error,
         ),
         query=response.query,
+        citations=citations,
     )
 
 
@@ -157,7 +171,9 @@ async def upload_document(
         raise HTTPException(status_code=413, detail="File exceeds the 20 MB upload limit.")
 
     try:
-        text = extract_text(filename, bytes(file_bytes))
+        pages = extract_pages(filename, bytes(file_bytes))
+        text = "\n\n".join(pages)
+        page_content = "\n\n".join(f"[[PAGE:{i + 1}]]\n{page}" for i, page in enumerate(pages))
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
 
@@ -170,12 +186,12 @@ async def upload_document(
 
     # Cache locally (always)
     local_res = await agent.cache_document_locally(
-        doc_id=doc_id, title=doc_title, content=text
+        doc_id=doc_id, title=doc_title, content=text, page_content=page_content
     )
 
     # Ingest to cloud (best-effort)
     cloud_res = await agent.ingest_document_to_cloud(
-        doc_id=doc_id, title=doc_title, text=text
+        doc_id=doc_id, title=doc_title, text=page_content
     )
 
     return IngestResponse(
@@ -199,6 +215,32 @@ async def list_documents(limit: int = 50):
         )
         for r in rows
     ]
+
+
+@app.get("/api/timeline", tags=["Clinical records"])
+async def clinical_timeline():
+    """Extract dated, source-linked events from cached records for human review."""
+    agent = get_agent()
+    documents = await agent.list_cached_documents(limit=200)
+    sources = []
+    for doc in documents:
+        result = await agent.get_cached_document_page_text(doc["doc_id"])
+        if result.ok:
+            sources.append({"doc_id": doc["doc_id"], "title": doc["title"], "text": result.text})
+    return {"events": build_timeline(sources), "document_count": len(sources)}
+
+
+@app.get("/api/safety-check", tags=["Clinical records"])
+async def clinical_safety_check():
+    """Find potential record inconsistencies; findings are not diagnoses."""
+    agent = get_agent()
+    documents = await agent.list_cached_documents(limit=200)
+    sources = []
+    for doc in documents:
+        result = await agent.get_cached_document_page_text(doc["doc_id"])
+        if result.ok:
+            sources.append({"doc_id": doc["doc_id"], "title": doc["title"], "text": result.text})
+    return {"findings": detect_contradictions(sources), "document_count": len(sources)}
 
 
 @app.post("/api/summarize", response_model=TextResponse, tags=["Analysis"])

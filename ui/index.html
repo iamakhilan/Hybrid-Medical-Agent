@@ -207,6 +207,19 @@
           <p>No documents cached yet. Upload a PDF or text file above to get started.</p>
         </div>
 
+        <section class="record-exploration" aria-labelledby="record-exploration-title">
+          <div class="record-exploration-heading">
+            <div><span class="analysis-kicker">Record intelligence</span><h2 id="record-exploration-title">Explore across records</h2><p>Review dated events and possible inconsistencies with their source passages.</p></div>
+          </div>
+          <div class="record-tool-actions">
+            <button type="button" class="btn-secondary-full" id="load-timeline-btn">Build medical timeline</button>
+            <button type="button" class="btn-secondary-full" id="run-safety-check-btn">Check for discrepancies</button>
+          </div>
+          <div id="timeline-results" class="record-results" aria-live="polite"></div>
+          <div id="safety-results" class="record-results" aria-live="polite"></div>
+          <p class="record-safety-note">These are heuristic review aids, not diagnoses or treatment recommendations. Confirm all findings against the original records.</p>
+        </section>
+
       </div>
     </section>
 

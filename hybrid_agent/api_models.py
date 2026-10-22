@@ -36,12 +36,22 @@ class SourceInfo(BaseModel):
     error: str = ""
 
 
+class EvidenceCitation(BaseModel):
+    doc_id: str
+    title: str
+    page_number: int | None = None
+    chunk_index: int
+    passage: str
+    score: float
+
+
 class AskResponse(BaseModel):
     answer: str
     used_cloud: bool
     local: SourceInfo
     cloud: SourceInfo
     query: str
+    citations: list[EvidenceCitation] = Field(default_factory=list)
 
 
 class DocumentInfo(BaseModel):
