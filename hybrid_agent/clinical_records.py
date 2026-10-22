@@ -42,6 +42,25 @@ def _parse_date(raw: str) -> str | None:
     return None
 
 
+def _normalize_dose(value: str, unit: str) -> tuple[float, str]:
+    """Normalize common mass-dose units to mg while keeping volume/activity separate."""
+    amount = float(value)
+    normalized_unit = unit.lower().replace("µ", "u")
+    if normalized_unit == "g":
+        amount *= 1000
+        normalized_unit = "mg"
+    elif normalized_unit in {"mcg", "ug"}:
+        amount /= 1000
+        normalized_unit = "mg"
+    elif normalized_unit == "ml":
+        normalized_unit = "ml"
+    elif normalized_unit == "iu":
+        normalized_unit = "iu"
+    elif normalized_unit == "unit":
+        normalized_unit = "units"
+    return round(amount, 6), normalized_unit
+
+
 def _page_sections(text: str) -> list[tuple[int | None, str]]:
     matches = list(PAGE_MARKER.finditer(text or ""))
     if not matches:
@@ -121,7 +140,11 @@ def detect_contradictions(sources: list[dict]) -> list[dict]:
                 medicine = match.group(1).strip().lower()
                 if medicine in {"dose", "taking", "take", "given", "daily", "tablet", "capsule", "every", "about"}:
                     continue
-                mention = {**base, "medicine": medicine, "dose": match.group(2), "unit": match.group(3).lower(), "date": normalized_date}
+                normalized_amount, normalized_unit = _normalize_dose(match.group(2), match.group(3))
+                mention = {
+                    **base, "medicine": medicine, "dose": match.group(2), "unit": match.group(3).lower(),
+                    "normalized_dose": normalized_amount, "normalized_unit": normalized_unit, "date": normalized_date,
+                }
                 dose_mentions.setdefault(medicine, []).append(mention)
 
             if re.search(r"\ballerg(?:y|ies|ic)\b", low):
@@ -163,7 +186,7 @@ def detect_contradictions(sources: list[dict]) -> list[dict]:
                     })
 
     for medicine, mentions in dose_mentions.items():
-        unique = {(m["dose"], m["unit"]) for m in mentions}
+        unique = {(m["normalized_dose"], m["normalized_unit"]) for m in mentions}
         if len(unique) > 1:
             findings.append({
                 "kind": "medication_dose_conflict", "severity": "high_review",

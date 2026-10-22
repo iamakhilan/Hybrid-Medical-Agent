@@ -26,6 +26,14 @@ class ClinicalRecordsTests(unittest.TestCase):
         findings = detect_contradictions(sources)
         self.assertTrue(any(item["kind"] == "medication_dose_conflict" for item in findings))
 
+    def test_equivalent_mass_units_are_normalized(self):
+        sources = [
+            {"doc_id": "a", "title": "Visit A", "text": "[[PAGE:1]]\n2025-01-01 Metformin 1 g daily"},
+            {"doc_id": "b", "title": "Visit B", "text": "[[PAGE:2]]\n2025-02-01 Metformin 1000 mg daily"},
+        ]
+        findings = detect_contradictions(sources)
+        self.assertFalse(any(item["kind"] == "medication_dose_conflict" for item in findings))
+
     def test_flags_allergy_status_conflict(self):
         sources = [
             {"doc_id": "a", "title": "Intake", "text": "[[PAGE:1]]\n2025-01-01 No known allergies"},
