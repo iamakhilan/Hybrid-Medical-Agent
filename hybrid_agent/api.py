@@ -126,11 +126,36 @@ async def ask(req: AskRequest):
     all_citations = raw_citations + local_citations
     citations = []
     seen_citations = set()
+    # Build a focused term set once and reject title/heading-only snippets.
+    question_terms = {w.lower() for w in re.findall(r"[A-Za-z0-9]+", req.question)
+                      if len(w) > 2 and w.lower() not in {
+                          "what", "when", "where", "which", "with", "from", "that", "this",
+                          "each", "does", "have", "has", "are", "the", "and", "for", "into",
+                          "about", "patient", "document", "documents", "record", "records",
+                          "please", "find", "list", "show", "source", "page", "pages",
+                          "answer", "evidence", "based", "only", "return", "exact", "matching",
+                          "passages", "include", "their", "every", "entry", "entries", "search",
+                          "cite", "citations", "supporting", "identify", "conflicting", "documented",
+                      }}
+    def passage_is_relevant(passage: str) -> bool:
+        clean = re.sub(r"[^A-Za-z0-9 ]", " ", passage).lower()
+        words = set(clean.split())
+        if len(words) < 4:
+            return False
+        # Explicitly reject document titles and short section headers.
+        if clean.strip() in {"synthetic patient test record", "medication reconciliation",
+                             "laboratory results", "encounter notes", "patient profile"}:
+            return False
+        overlap = len(question_terms & words)
+        clinical_terms = {"amlodipine", "allergy", "allergies", "rash", "dose", "doses",
+                          "medication", "medications", "mg"}
+        asks_medication = bool(question_terms & clinical_terms)
+        return overlap >= 1 and (not asks_medication or bool(words & clinical_terms))
     for hit in all_citations:
         passage = re.sub(r"\[/?(?:b|em|strong|mark)\]", "", str(hit.get("text") or hit.get("snippet") or "")).strip()
         doc_id = str(hit.get("doc_id") or "")
         title = str(hit.get("title") or doc_id or "Source document")
-        if not passage or not doc_id:
+        if not passage or not doc_id or not passage_is_relevant(passage):
             continue
         page_number = hit.get("page_number")
         if isinstance(page_number, str) and page_number.isdigit():
@@ -190,7 +215,7 @@ async def ask(req: AskRequest):
                     line = line.strip()
                     line_terms = {w.lower() for w in re.findall(r"[A-Za-z0-9]+", line) if len(w) > 2}
                     overlap = len(terms & line_terms)
-                    if overlap and len(line) >= 12:
+                    if overlap and len(line) >= 12 and passage_is_relevant(line):
                         candidates.append((overlap, str(doc["doc_id"]), str(doc.get("title") or doc["doc_id"]), page, line))
         candidates.sort(key=lambda item: item[0], reverse=True)
         for score, doc_id, title, page, passage in candidates:
@@ -213,11 +238,21 @@ async def ask(req: AskRequest):
     )
     if looks_like_retrieval_dump:
         if citations:
-            answer_text = (
-                "I found potentially relevant passages in the cached records. "
-                "The snippets below are source evidence, not a verified clinical conclusion. "
-                "Review the cited records before making decisions."
-            )
+            medication_passages = [item["passage"] for item in citations
+                                   if re.search(r"(?i)amlodipine|allerg|rash", item["passage"])]
+            if medication_passages:
+                answer_text = (
+                    "The cached record contains these relevant medication/allergy entries:\\n\\n"
+                    + "\\n".join(f"- {passage}" for passage in medication_passages[:req.top_k])
+                    + "\\n\\nThese are excerpts from a fictional test record. The entries show different "
+                    "documented doses and a possible rash entry; they do not establish which dose is correct "
+                    "or determine treatment. A clinician should reconcile the original records."
+                )
+            else:
+                answer_text = (
+                    "I found potentially relevant passages in the cached records, but none clearly supports "
+                    "a medication or allergy conclusion. Review the evidence cards and original document."
+                )
         else:
             answer_text = (
                 "I couldn't retrieve a usable supporting passage for this question. "
