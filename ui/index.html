@@ -85,6 +85,10 @@
         <h1 class="topbar-title" id="topbar-title">Clinical Q&amp;A</h1>
         <p class="topbar-sub" id="topbar-sub">Ask questions about your patient documents</p>
       </div>
+      <div class="topbar-health" id="topbar-health" aria-live="polite">
+        <span class="topbar-health-dot"></span>
+        <span id="topbar-health-text">Checking services…</span>
+      </div>
     </div>
 
     <!-- ========== CHAT PANEL ========== -->
@@ -97,11 +101,14 @@
               <polyline points="2,12 7,12 10,4 14,20 17,12 22,12" />
             </svg>
           </div>
-          <p>Ask any clinical question about your patient documents. Answers come from your local cache and the cloud, at the same time.</p>
+          <div class="empty-copy">
+            <h2>Ask your documents, not a blank chat</h2>
+            <p>Get answers grounded in your cached patient documents, with local retrieval and cloud analysis working together.</p>
+          </div>
           <div class="suggestion-chips">
-            <button type="button" class="chip">What are the latest lab values?</span>
-            <button type="button" class="chip">Summarise the diagnosis history</span>
-            <button type="button" class="chip">What medications is the patient on?</span>
+            <button type="button" class="chip">What are the latest lab values?</button>
+            <button type="button" class="chip">Summarise the diagnosis history</button>
+            <button type="button" class="chip">What medications is the patient on?</button>
             <button type="button" class="chip">Are there any abnormal findings?</button>
           </div>
         </div>
@@ -121,6 +128,10 @@
               <polyline points="14,6 20,12 14,18" />
             </svg>
           </button>
+        </div>
+        <div class="composer-meta">
+          <span>Enter to send · Shift+Enter for a new line</span>
+          <span id="chat-char-count">0 / 4000</span>
         </div>
       </div>
 
@@ -153,8 +164,18 @@
 
         <!-- Document library -->
         <div class="docs-list-header">
-          <h3>Cached documents</h3>
-          <span class="doc-count" id="doc-count">0</span>
+          <div class="docs-heading">
+            <h2>Cached documents</h2>
+            <span class="doc-count" id="doc-count">0</span>
+          </div>
+          <label class="doc-search" for="doc-search">
+            <span class="sr-only">Search documents</span>
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+              <circle cx="11" cy="11" r="7"></circle>
+              <line x1="16.5" y1="16.5" x2="21" y2="21"></line>
+            </svg>
+            <input id="doc-search" type="search" placeholder="Search documents" autocomplete="off" />
+          </label>
         </div>
 
         <div class="docs-grid" id="docs-grid" aria-label="Document library"></div>
@@ -176,6 +197,17 @@
     <section class="panel" id="panel-analyze" aria-label="Deep analysis panel">
       <div class="analyze-panel-inner">
 
+        <div class="analysis-intro">
+          <span class="analysis-kicker">Workspace</span>
+          <h2>Choose a source, then ask for the insight you need.</h2>
+          <p>Select a cached document or paste text. Deep analysis is best for comparisons, progression, and extracting structured clinical details.</p>
+        </div>
+
+        <div class="form-section">
+        <div class="form-section-heading">
+          <span class="step-number">1</span>
+          <div><strong>Choose source</strong><span>Select a document or paste text</span></div>
+        </div>
         <div class="form-group">
           <label class="form-label" for="analyze-doc-select">Source document</label>
           <select class="form-select" id="analyze-doc-select" aria-label="Select document">
@@ -193,7 +225,13 @@
             aria-label="Paste document text"
           ></textarea>
         </div>
+        </div>
 
+        <div class="form-section">
+        <div class="form-section-heading">
+          <span class="step-number">2</span>
+          <div><strong>Define the task</strong><span>Tell MedAgent what to extract or compare</span></div>
+        </div>
         <div class="form-group">
           <label class="form-label" for="analyze-question">Analysis question</label>
           <textarea
@@ -214,6 +252,7 @@
             style="min-height:56px"
             aria-label="Summarize focus"
           ></textarea>
+        </div>
         </div>
 
         <div class="analyze-actions">
