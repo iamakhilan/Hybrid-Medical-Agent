@@ -142,17 +142,28 @@ async def ask(req: AskRequest):
             "score": float(hit.get("score", 0.0) or 0.0),
         })
 
-    # Local keyword fallback: if both retrieval adapters return no usable
-    # citations, search cached document text for query terms and cite exact
-    # matching lines. This prevents a document-list preview being mistaken
-    # for evidence and never fabricates a page number.
+    # Local evidence fallback. Rank actual stored lines by meaningful query-term
+    # overlap, rather than requiring two terms on the same line (which fails
+    # for short medication/lab entries). If the question names a document,
+    # prioritize that document. Never fabricate a citation or page number.
     if not citations:
-        stop_words = {"what", "when", "where", "which", "with", "from", "that", "this", "each",
-                      "does", "have", "has", "are", "the", "and", "for", "into", "about", "patient",
-                      "document", "documents", "record", "records", "please", "find", "list", "show",
-                      "source", "page", "pages", "answer", "evidence", "based", "only", "return"}
-        terms = {w.lower() for w in re.findall(r"[A-Za-z0-9]+", req.question) if len(w) > 2 and w.lower() not in stop_words}
+        stop_words = {
+            "what", "when", "where", "which", "with", "from", "that", "this", "each",
+            "does", "have", "has", "are", "the", "and", "for", "into", "about", "patient",
+            "document", "documents", "record", "records", "please", "find", "list", "show",
+            "source", "page", "pages", "answer", "evidence", "based", "only", "return",
+            "exact", "matching", "passages", "include", "their", "every", "entry", "entries",
+            "search", "cite", "citations", "supporting", "identify", "conflicting",
+        }
+        terms = {w.lower() for w in re.findall(r"[A-Za-z0-9]+", req.question)
+                 if len(w) > 2 and w.lower() not in stop_words}
         documents = await agent.list_cached_documents(limit=200)
+        question_lower = req.question.lower()
+        named_docs = [d for d in documents if str(d.get("title", "")).lower() in question_lower
+                      or str(d.get("doc_id", "")).lower() in question_lower]
+        if named_docs:
+            documents = named_docs + [d for d in documents if d not in named_docs]
+        candidates = []
         for doc in documents:
             stored = await agent.get_cached_document_page_text(doc["doc_id"])
             if not stored.ok:
@@ -162,8 +173,8 @@ async def ask(req: AskRequest):
             segments = []
             if page_matches:
                 for i, marker in enumerate(page_matches):
-                    end = page_matches[i + 1].start() if i + 1 < len(page_matches) else len(marked)
-                    segments.append((int(marker.group(1)), marked[marker.end():end]))
+                    finish = page_matches[i + 1].start() if i + 1 < len(page_matches) else len(marked)
+                    segments.append((int(marker.group(1)), marked[marker.end():finish]))
             else:
                 segments.append((None, marked))
             for page, body in segments:
@@ -171,17 +182,16 @@ async def ask(req: AskRequest):
                     line = line.strip()
                     line_terms = {w.lower() for w in re.findall(r"[A-Za-z0-9]+", line) if len(w) > 2}
                     overlap = len(terms & line_terms)
-                    if overlap >= 2 and len(line) >= 25:
-                        key = (str(doc["doc_id"]).casefold(), re.sub(r"\W+", " ", line).casefold()[:240])
-                        if key in seen_citations:
-                            continue
-                        seen_citations.add(key)
-                        citations.append({"doc_id": str(doc["doc_id"]), "title": str(doc.get("title") or doc["doc_id"]),
-                                          "page_number": page, "chunk_index": -1, "passage": line, "score": float(overlap)})
-                        if len(citations) >= req.top_k:
-                            break
-                if len(citations) >= req.top_k:
-                    break
+                    if overlap and len(line) >= 12:
+                        candidates.append((overlap, str(doc["doc_id"]), str(doc.get("title") or doc["doc_id"]), page, line))
+        candidates.sort(key=lambda item: item[0], reverse=True)
+        for score, doc_id, title, page, passage in candidates:
+            key = (doc_id.casefold(), re.sub(r"\W+", " ", passage).casefold()[:240])
+            if key in seen_citations:
+                continue
+            seen_citations.add(key)
+            citations.append({"doc_id": doc_id, "title": title, "page_number": page,
+                              "chunk_index": -1, "passage": passage, "score": float(score)})
             if len(citations) >= req.top_k:
                 break
     return AskResponse(
