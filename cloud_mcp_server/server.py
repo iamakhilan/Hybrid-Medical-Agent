@@ -122,9 +122,8 @@ def summarize_document(text: str, focus: str = "") -> str:
 @mcp.tool()
 def answer_with_cloud_context(question: str, top_k: int = config.DEFAULT_TOP_K) -> str:
     """Full deep-RAG pipeline: semantic search in Qdrant, then Gemini
-    reasoning grounded in the retrieved chunks. If Qdrant search returns 0 hits
-    (or is offline), falls back to local cached documents so Gemini can reason over
-    the actual patient record."""
+    reasoning grounded in retrieved cloud chunks. If no relevant cloud chunks are
+    available, returns a clear no-context result; the hybrid agent handles local fallback."""
     context_chunks = []
     try:
         query_vector = embedding_service.embed_query(question)
