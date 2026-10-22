@@ -367,8 +367,9 @@ function renderDocuments() {
     const title = String(doc.title || '');
     const source = String(doc.source || '');
     const matchesQuery = !query || title.toLowerCase().includes(query) || source.toLowerCase().includes(query);
-    const extension = (source.split('.').pop() || title.split('.').pop() || '').toLowerCase();
-    const matchesType = type === 'all' || extension === type || (type === 'md' && extension === 'markdown');
+    const extensionMatch = `${title} ${source}`.match(/\\.(pdf|txt|md)(?:\\b|$)/i);
+    const extension = extensionMatch ? extensionMatch[1].toLowerCase() : '';
+    const matchesType = type === 'all' || extension === type;
     return matchesQuery && matchesType;
   });
   const visibleDocuments = [...filtered].sort((a, b) => {
@@ -401,7 +402,8 @@ function renderDocuments() {
       : 'Date unavailable';
     const source = String(doc.source || 'Document');
     const title = String(doc.title || 'Untitled document');
-    const extension = (source.split('.').pop() || title.split('.').pop() || 'file').toUpperCase();
+    const extensionMatch = `${title} ${source}`.match(/\\.(pdf|txt|md)(?:\\b|$)/i);
+    const extension = extensionMatch ? extensionMatch[1].toUpperCase() : 'FILE';
     const card = document.createElement('article');
     card.className = 'doc-card';
     const header = document.createElement('div');
