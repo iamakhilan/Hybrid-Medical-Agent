@@ -1562,3 +1562,18 @@ body {
 .source-open-link, .record-source-link a { color: var(--accent-strong); font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
 .source-open-link:hover, .record-source-link a:hover { color: var(--accent); }
 .record-source-link { padding: 0 12px 10px; font-size: 11px; }
+
+
+/* Evidence presentation refinement */
+.evidence-list { margin: 14px 0 4px; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--surface); }
+.evidence-list > h4 { margin: 0 0 8px; font-size: 13px; }
+.evidence-intro, .evidence-empty p { margin: 0 0 10px; color: var(--ink-soft); font-size: 12px; line-height: 1.55; }
+.evidence-card { box-shadow: 0 1px 2px rgba(0,0,0,.025); }
+.evidence-card + .evidence-card { margin-top: 7px; }
+.evidence-card summary { min-height: 42px; }
+.evidence-card[open] summary { background: var(--surface-sunken); }
+.evidence-card blockquote { font-family: inherit; }
+.evidence-card small { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; line-height: 1.5; }
+.evidence-empty { border-style: dashed; }
+.evidence-empty h4 { color: var(--warning); }
+.evidence-empty p { margin: 0; }
