@@ -246,7 +246,7 @@ Open:
 - **Interactive API documentation:** [http://127.0.0.1:7860/docs](http://127.0.0.1:7860/docs)
 - **Health endpoint:** [http://127.0.0.1:7860/api/health](http://127.0.0.1:7860/api/health)
 
-The API starts the local MCP server as a subprocess. You do not need to start the local server separately when running the API.
+The API starts the local MCP server as a subprocess. You do not need to start the local server separately when running the API. The REST layer accesses local document metadata and content through the hybrid agent's MCP client; it does not query SQLite directly.
 
 ### 5. Alternative: run the interactive agent
 
@@ -346,6 +346,8 @@ For exact request and response schemas, use the interactive API docs at `/docs`.
 | `cache_document` | Add or update a document in the local cache |
 | `search_local_cache` | Search cached content |
 | `ask_local` | Answer using locally retrieved document chunks |
+| `list_cached_documents` | List cached document metadata through MCP |
+| `get_cached_document` | Fetch cached document text through MCP |
 | `cache://docs/{doc_id}` | Resource containing a cached document's text |
 
 ### Cloud MCP server
@@ -385,6 +387,8 @@ Hybrid-Medical-Agent/
 │   ├── local_llm.py             # Optional local inference/fallback
 │   ├── config.py               # Local configuration
 │   └── requirements.txt
+├── tests/
+│   └── test_agent_merge.py    # Routing and fallback regression tests
 ├── ui/
 │   ├── index.html               # Web interface
 │   ├── app.js                   # Browser interactions
@@ -434,6 +438,7 @@ Confirm the file is a readable PDF or try a text-based copy. Image-only scans ma
 - **Privacy matters:** medical records can contain highly sensitive personal information. Use synthetic/de-identified data for testing and verify applicable privacy, consent, retention, and security requirements before processing real data.
 - **Cloud processing sends data to external services:** document ingestion and cloud-grounded answers may transmit document text or derived representations to configured Gemini/Qdrant services. Do not assume data stays on-device.
 - **No guaranteed availability:** local fallback depends on the document being cached and relevant text being retrievable. Cloud features depend on external service configuration and availability.
+- **Prototype API security:** CORS is restricted to the local UI origins by default, but the API does not yet implement user authentication or authorization. Do not expose it to an untrusted network.
 - **No formal clinical validation is implied:** this repository does not claim regulatory clearance, clinical validation, or suitability for autonomous care.
 
 ## 🗺️ Roadmap Ideas
