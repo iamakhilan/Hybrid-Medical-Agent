@@ -58,7 +58,7 @@ class DocumentInfo(BaseModel):
     doc_id: str
     title: str
     source: str
-    created_at: float
+    created_at: float | str
     char_count: int | None = None
 
 

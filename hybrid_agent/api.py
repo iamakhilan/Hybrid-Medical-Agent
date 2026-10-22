@@ -220,6 +220,7 @@ async def upload_document(
 @app.get("/api/documents", response_model=list[DocumentInfo], tags=["Documents"])
 async def list_documents(limit: int = 50):
     """List all documents currently cached in the local SQLite store."""
+    agent = get_agent()
     rows = await agent.list_cached_documents(limit=limit)
     return [
         DocumentInfo(
