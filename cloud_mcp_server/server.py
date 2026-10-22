@@ -64,7 +64,10 @@ def ingest_document(doc_id: str, title: str, text: str, deep_extraction: bool = 
 
     chunks = document_processor.chunk_text(doc_id=doc_id, text=working_text, title=title)
     if not chunks:
-        return f"Nothing to ingest for '{doc_id}': document text was empty."
+        # An empty replacement must not leave chunks from an older version
+        # searchable in Qdrant.
+        qdrant_service.delete_document_chunks(doc_id)
+        return f"Cleared cloud chunks for '{doc_id}': document text was empty."
 
     chunks_with_vectors = embedding_service.embed_chunks(chunks)
     count = qdrant_service.upsert_chunks(chunks_with_vectors)
