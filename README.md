@@ -1,153 +1,444 @@
-# Hybrid Doctor-Document Agent — Local Cache + Cloud Deep Context
+<!--
+  Hybrid Medical Agent
+  Documentation: https://github.com/iamakhilan/Hybrid-Medical-Agent
+-->
 
-Three components, three processes, one job split cleanly between them:
+<div align="center">
 
-```
-Doctor UI
-   │
-   ▼
-Hybrid Agent (MCP client)  ──stdio──►  Local MCP Server  ──►  SQLite cache (+ optional local LLM)
-   │
-   └────────Streamable HTTP──►  Cloud MCP Server  ──►  Qdrant Cloud + Gemini
-```
+# 🩺 Hybrid Medical Agent
 
-The agent never talks to Gemini or Qdrant directly. It only ever talks to
-two MCP servers. Every query is fired at **both** at the same time
-(speculative parallel routing); the local answer comes back in
-milliseconds, the cloud answer arrives later (or fails/times out), and
-the agent merges the two — falling back to local-only if the cloud side
-is unreachable.
+### A local-first medical document assistant, powered by hybrid retrieval and AI.
 
-This matches the phased plan: **build and test the cloud system locally
-first, deploy later.** Nothing in `cloud_mcp_server/` needs to run on
-AWS/Azure/GCP to work — only Gemini and Qdrant (its two backing services)
-are actually remote. The server process itself runs on your PC exactly
-as it will run in a container later.
+**Fast local recall. Deeper cloud context. One unified workflow.**
 
----
+<p>
+  <a href="https://github.com/iamakhilan/Hybrid-Medical-Agent">
+    <img src="https://img.shields.io/badge/Project-Hybrid%20Medical%20Agent-0f766e?style=for-the-badge&logo=github&logoColor=white" alt="Hybrid Medical Agent" />
+  </a>
+  <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python" />
+  <img src="https://img.shields.io/badge/MCP-1.29.0-6D5DFB?style=for-the-badge" alt="Model Context Protocol" />
+  <img src="https://img.shields.io/badge/FastAPI-REST%20API-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI" />
+</p>
 
-## The three components
+<p>
+  <a href="#-overview">Overview</a> ·
+  <a href="#-architecture">Architecture</a> ·
+  <a href="#-features">Features</a> ·
+  <a href="#-quick-start">Quick Start</a> ·
+  <a href="#-api-reference">API</a> ·
+  <a href="#-safety--limitations">Safety</a>
+</p>
 
-### 1. `local_mcp_server/` — the fast, always-available side
-
-- **Transport:** stdio. It's spawned as a subprocess by the hybrid agent
-  — it never needs to be reachable over a network, so there's nothing to
-  deploy, configure, or secure for this half of the system.
-- **Storage:** SQLite, with an FTS5 full-text index for BM25 keyword
-  search. FTS5 ships with every Python's built-in `sqlite3` module, so
-  there's no native extension to compile on a Windows dev machine.
-- **"LLM":** pluggable. Supports **Ollama** natively (e.g. `phi3` model running via `ollama serve`), or a local GGUF file via `llama-cpp-python`. If neither is active, it falls back to a deterministic **extractive** answer built from the best-matching cached chunks — so the tool is always usable, even before you've set up a real local model.
-
-- **Tools:** `local_health_check`, `cache_document`, `search_local_cache`,
-  `ask_local`.
-- **Resource:** `cache://docs/{doc_id}` — full text of a cached document.
-
-### 2. `cloud_mcp_server/` — the deep, "expensive" side
-
-- **Transport:** Streamable HTTP (the current recommended MCP transport
-  for new servers; SSE is being superseded). This process is a standalone
-  HTTP service — run it on your PC today, containerize and deploy it
-  later, with no code changes.
-- **Gemini** is used for the things a local model is bad at: extracting
-  structured JSON (clean text, tables, metadata) out of long/messy
-  documents, deep multi-page analysis, and grounded question answering
-  — never as a general-purpose chatbot.
-- **Qdrant** (Qdrant Cloud, or a local Qdrant container during dev —
-  same code path either way) stores chunk embeddings and does the
-  semantic search.
-- **Tools**, in build/test order:
-  1. `cloud_health_check` — no API keys required. Confirms the server is
-     reachable and reports whether Gemini/Qdrant are configured.
-  2. `ingest_document(doc_id, title, text)` — Gemini extraction (optional)
-     → chunk → Gemini embeddings → upsert into Qdrant.
-  3. `search_cloud_documents(query, top_k)` — raw semantic search hits.
-  4. `fetch_deep_cloud_context(query, top_k)` — same search, formatted as
-     a context block ready to feed an LLM.
-  5. `analyze_document(text, question)` — deep analysis of a whole
-     document against a specific question (disease progression, treatment
-     comparison, lab-value extraction, etc.).
-  6. `summarize_document(text, focus="")` — condense a document.
-  7. `answer_with_cloud_context(question, top_k)` — the full RAG pipeline:
-     search → Gemini reasoning, grounded in what was found.
-
-### 3. `hybrid_agent/` — the MCP client / router
-
-- Launches the local server as a subprocess (stdio) and connects to the
-  cloud server over HTTP.
-- `ask(question)` fires both in parallel, waits (with a timeout on the
-  cloud side), and merges: cloud answer as the primary response when it
-  succeeds, local-only with a short note when the cloud side fails,
-  times out, or was never reachable at startup.
-- Distinguishes a genuine protocol failure from a **tool-level** error —
-  MCP's `CallToolResult.isError` flag catches the case where a tool call
-  "succeeds" but the tool itself reports failure internally (e.g. a
-  missing `GEMINI_API_KEY`), so that error text never gets mistaken for a
-  real answer.
-- `cache_document_locally(...)` / `ingest_document_to_cloud(...)` expose
-  the ingestion tools on both sides for whatever's feeding documents in
-  (the doctor's UI, a batch script, etc.).
+</div>
 
 ---
 
-## Setup
+## ✨ Overview
+
+**Hybrid Medical Agent** is a medical-document Q&A and analysis project designed to bring together two complementary ways of working with information:
+
+- **Local retrieval** for quick access to documents already cached on the machine.
+- **Cloud retrieval and reasoning** for semantic search and deeper document-grounded analysis.
+
+A single agent coordinates both through the **Model Context Protocol (MCP)**. The local and cloud paths run in parallel; when the cloud backend is unavailable or times out, the agent can still return a useful local result when one exists.
+
+The included **MedAgent web UI** provides a workspace for clinical Q&A, document upload, document summaries, and focused analysis.
+
+> **Important:** This is a software project for research, prototyping, and clinician-support workflows—not a medical device or a substitute for professional judgment. Its output can be incomplete or incorrect and must be independently verified.
+
+## 🌟 Features
+
+<table>
+  <tr>
+    <td width="50%">
+      <h3>⚡ Local-first retrieval</h3>
+      Cache documents in SQLite and search them with SQLite FTS5 full-text search. Local retrieval can remain available without cloud credentials.
+    </td>
+    <td width="50%">
+      <h3>☁️ Cloud semantic search</h3>
+      Use Gemini and Qdrant to process documents, create embeddings, retrieve relevant chunks, and support document-grounded responses.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <h3>🔀 Parallel hybrid routing</h3>
+      Send questions to local and cloud tools concurrently, track each result, and fall back to local output when the cloud path fails.
+    </td>
+    <td width="50%">
+      <h3>📄 Document workspace</h3>
+      Upload PDF and text-based documents, keep a local cache, browse stored documents, summarize content, and ask focused analysis questions.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <h3>🧠 Flexible local answering</h3>
+      Supports Ollama and optional GGUF inference through `llama-cpp-python`; without a local model, it can use an extractive fallback based on matching cached text.
+    </td>
+    <td width="50%">
+      <h3>🩺 REST API + interactive docs</h3>
+      FastAPI serves the browser UI and exposes endpoints for health checks, Q&A, document management, summarization, and analysis.
+    </td>
+  </tr>
+</table>
+
+## 🏗️ Architecture
+
+```mermaid
+flowchart TD
+    U[Clinician / User] --> UI[MedAgent Web UI]
+    UI --> API[FastAPI API<br/>Port 7860]
+    API --> H[Hybrid Agent / MCP Client]
+
+    H -->|stdio| L[Local MCP Server]
+    H -->|Streamable HTTP| C[Cloud MCP Server<br/>Port 8000]
+
+    L --> DB[(SQLite + FTS5)]
+    L -. optional .-> O[Ollama / GGUF Model]
+
+    C --> G[Google Gemini]
+    C --> Q[(Qdrant Vector Database)]
+
+    DB --> R[Local Retrieval Result]
+    O --> R
+    G --> S[Cloud-grounded Analysis]
+    Q --> S
+    R --> M[Hybrid Response Selection]
+    S --> M
+    M --> API
+    API --> UI
+```
+
+### The three core components
+
+| Component | Responsibility | Connection |
+|---|---|---|
+| `local_mcp_server/` | Local document cache, full-text search, local answering, document resources | MCP over **stdio** |
+| `cloud_mcp_server/` | Document processing, embeddings, vector retrieval, Gemini-based analysis and answers | MCP over **Streamable HTTP** |
+| `hybrid_agent/` | Starts the local server, connects to the cloud server, routes calls, applies timeouts and selects a response | MCP client + FastAPI |
+| `ui/` | Browser workspace for Q&A, uploads, summaries and analysis | Served by FastAPI |
+
+**Typical question flow**
+
+1. The UI sends a question to the FastAPI API.
+2. The hybrid agent asks the local and cloud MCP tools in parallel.
+3. The local server searches cached text; the cloud server retrieves relevant vector-store context and uses Gemini for a grounded answer.
+4. The agent selects the cloud answer when it is useful, otherwise falls back to a valid local answer when available.
+5. The API returns the answer and source-level status/latency information.
+
+The cloud MCP server is designed to run locally during development. Only its backing services—Gemini and Qdrant—need to be remote for a cloud-backed workflow.
+
+## 🧰 Tech Stack
+
+| Layer | Technologies |
+|---|---|
+| Language | Python |
+| UI | HTML, CSS, JavaScript |
+| API | FastAPI, Uvicorn |
+| Agent integration | Model Context Protocol (MCP) Python SDK |
+| Local search and storage | SQLite, FTS5 |
+| Cloud LLM | Google Gemini via `google-genai` |
+| Vector database | Qdrant |
+| Document extraction | `pypdf` and text processing |
+| Optional local inference | Ollama or `llama-cpp-python` |
+
+## 🚀 Quick Start
+
+### 1. Prerequisites
+
+- Python **3.10 or newer** recommended.
+- A terminal and Git.
+- For cloud-backed functionality: a Gemini API key and a Qdrant instance (local or hosted).
+- Optional: [Ollama](https://ollama.com/) with a model pulled locally, or a compatible GGUF model plus `llama-cpp-python`.
+
+### 2. Clone and install
 
 ```bash
-python -m venv .venv
-# Windows: .venv\Scripts\activate
-# macOS/Linux: source .venv/bin/activate
+git clone https://github.com/iamakhilan/Hybrid-Medical-Agent.git
+cd Hybrid-Medical-Agent
 
+python -m venv .venv
+```
+
+Activate the virtual environment:
+
+**Windows (PowerShell)**
+
+```powershell
+.venv\Scripts\Activate.ps1
+```
+
+**macOS / Linux**
+
+```bash
+source .venv/bin/activate
+```
+
+Install dependencies:
+
+```bash
+python -m pip install --upgrade pip
 pip install -r requirements.txt
+```
+
+> **MCP version note:** The project pins `mcp==1.29.0` because the server code uses the FastMCP API from that SDK release line. Keep the pin unless you also update and test the MCP server implementation.
+
+### 3. Configure environment variables
+
+Create a local `.env` file from the example:
+
+**Windows (PowerShell)**
+
+```powershell
+Copy-Item .env.example .env
+```
+
+**macOS / Linux**
+
+```bash
 cp .env.example .env
 ```
 
-`mcp` is pinned to `1.29.0` in every `requirements.txt` here on purpose —
-the MCP Python SDK's newest release (`2.0.0`) reworked the server API
-(`MCPServer` instead of `FastMCP`, plus new resource/request-state
-machinery). `1.29.0` is the last release on the well-established
-`FastMCP` API this project is built against; a plain `pip install mcp`
-will grab `2.0.0` instead and this code will not run against it unless
-you rewrite the server modules for the new API.
+Open `.env` and enter your **own** credentials. Do not commit this file.
 
-You don't need `GEMINI_API_KEY` or `QDRANT_URL` to get started — every
-cloud tool checks for them and returns a clear error instead of crashing,
-and the hybrid agent treats that exactly like an unreachable cloud
-server: clean fallback to the local answer.
+At minimum, the cloud-backed path uses:
 
-## Running it
+| Variable | Purpose |
+|---|---|
+| `GEMINI_API_KEY` | Google Gemini API key |
+| `GEMINI_MODEL` | Gemini generation model; default is `gemini-2.5-flash` |
+| `GEMINI_EMBEDDING_MODEL` | Embedding model name |
+| `GEMINI_EMBEDDING_DIM` | Embedding vector dimension; default is `768` |
+| `QDRANT_URL` | Qdrant endpoint |
+| `QDRANT_API_KEY` | Qdrant API key when required |
+| `QDRANT_COLLECTION` | Vector collection name; default is `medical_documents` |
+| `CLOUD_MCP_HOST` / `CLOUD_MCP_PORT` | Cloud MCP server bind address; defaults to `127.0.0.1:8000` |
+| `CLOUD_SERVER_URL` | MCP URL used by the hybrid agent; default is `http://127.0.0.1:8000/mcp` |
+| `CLOUD_TIMEOUT_SECONDS` | Cloud response timeout before fallback; default is `20` |
+| `OLLAMA_HOST` / `OLLAMA_MODEL` | Optional local Ollama endpoint and model |
+| `LOCAL_LLM_MODEL_PATH` | Optional GGUF model path |
+| `LOCAL_DB_PATH` | Optional SQLite database path |
 
-**Milestone 1 — cloud health check, no keys needed:**
+The local server has safe defaults. Cloud tools report configuration errors if Gemini or Qdrant settings are missing, and the hybrid agent can continue with local-only answers.
+
+> **Credential hygiene:** Never publish API keys in source control, screenshots, logs, or issue reports. If a key has ever been committed or shared, revoke it and create a replacement. Keep `.env` private; use `.env.example` only for non-secret configuration defaults.
+
+### 4. Start the application
+
+Start each process in a separate terminal from the repository root, with the virtual environment activated.
+
+**Terminal A — cloud MCP server**
+
 ```bash
 python -m cloud_mcp_server.server
-# in another terminal:
-curl -N -X POST http://127.0.0.1:8000/mcp \
-  -H "Content-Type: application/json" -H "Accept: application/json, text/event-stream" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"cloud_health_check","arguments":{}}}'
 ```
 
-**Milestone 2 — local server on its own:**
+By default, it listens on `http://127.0.0.1:8000/mcp`.
+
+**Terminal B — web app and API**
+
+```bash
+python -m hybrid_agent.api
+```
+
+Open:
+
+- **MedAgent UI:** [http://127.0.0.1:7860](http://127.0.0.1:7860)
+- **Interactive API documentation:** [http://127.0.0.1:7860/docs](http://127.0.0.1:7860/docs)
+- **Health endpoint:** [http://127.0.0.1:7860/api/health](http://127.0.0.1:7860/api/health)
+
+The API starts the local MCP server as a subprocess. You do not need to start the local server separately when running the API.
+
+### 5. Alternative: run the interactive agent
+
+For a terminal-only smoke test, start the cloud MCP server in one terminal, then run:
+
+```bash
+python -m hybrid_agent.agent
+```
+
+The agent checks server health and opens a question prompt. Type `quit` or `exit` to stop the session.
+
+### 6. Local-only development
+
+The local MCP server can also be launched on its own:
+
 ```bash
 python -m local_mcp_server.server
 ```
-(stdio-only — it expects to be driven by an MCP client, not curl. Use the
-hybrid agent, or any MCP Inspector-style tool, to exercise it directly.)
 
-**Milestone 3 — the full hybrid agent:**
+It uses stdio, so it expects to be controlled by an MCP client rather than queried directly with a browser or `curl`.
+
+## 🖥️ Using the Web UI
+
+### Clinical Q&A
+Ask questions about documents in the knowledge base—for example, requests for relevant lab values, medication history, diagnosis timelines, or abnormal findings. The UI displays the selected answer and reports local/cloud status.
+
+### Documents
+Upload a supported PDF or text document. The application extracts the text, caches it in SQLite, and attempts cloud ingestion for semantic retrieval. Cloud ingestion is best-effort, so a local cache can still be useful if the cloud service is not configured.
+
+### Deep analysis and summaries
+Choose a cached document or paste text, then enter a focused question. Use the summary focus field to steer the generated summary toward a subject such as diagnoses, medications, or lab values.
+
+Use synthetic or properly de-identified examples during development; do not upload real patient information to third-party services unless you have the necessary authorization, security controls, and legal basis.
+
+## 🔌 API Reference
+
+The FastAPI application exposes the following endpoints:
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `GET` | `/api/health` | Check local and cloud MCP server status |
+| `POST` | `/api/ask` | Ask a question using hybrid retrieval |
+| `POST` | `/api/documents` | Upload and ingest a PDF/text document |
+| `GET` | `/api/documents` | List documents in the local SQLite cache |
+| `POST` | `/api/summarize` | Summarize document text or a cached document |
+| `POST` | `/api/analyze` | Analyze document text against a question |
+| `GET` | `/docs` | Interactive OpenAPI / Swagger UI |
+
+Example: ask a question from the command line:
+
 ```bash
-# terminal 1
-python -m cloud_mcp_server.server
-
-# terminal 2 (spawns the local server itself)
-python -m hybrid_agent.agent
+curl -X POST http://127.0.0.1:7860/api/ask \
+  -H "Content-Type: application/json" \
+  -d '{"question":"What relevant findings are mentioned in the available documents?","top_k":5}'
 ```
-This drops you into a small REPL: it prints both servers' health, then
-lets you type questions and see the merged local+cloud answer, with
-per-source latency and success/failure shown underneath.
 
-## Then, only once this all works locally
+Example: health check:
 
-1. Create the Qdrant Cloud cluster, set `QDRANT_URL` / `QDRANT_API_KEY`.
-2. Get a Gemini API key, set `GEMINI_API_KEY`.
-3. Call `ingest_document` on a few real documents, then try
-   `answer_with_cloud_context` for real.
-4. Only then: containerize `cloud_mcp_server/` and deploy it. Nothing in
-   `hybrid_agent/` changes except `CLOUD_SERVER_URL` in `.env`.
+```bash
+curl http://127.0.0.1:7860/api/health
+```
+
+For exact request and response schemas, use the interactive API docs at `/docs`.
+
+## 🧩 MCP Tool Catalog
+
+### Local MCP server
+
+| Tool / resource | Description |
+|---|---|
+| `local_health_check` | Report local server and cache health |
+| `cache_document` | Add or update a document in the local cache |
+| `search_local_cache` | Search cached content |
+| `ask_local` | Answer using locally retrieved document chunks |
+| `cache://docs/{doc_id}` | Resource containing a cached document's text |
+
+### Cloud MCP server
+
+| Tool | Description |
+|---|---|
+| `cloud_health_check` | Check server reachability and service configuration |
+| `ingest_document` | Process text, create chunks/embeddings, and store them in Qdrant |
+| `search_cloud_documents` | Return semantic search hits |
+| `fetch_deep_cloud_context` | Build a context block from retrieved chunks |
+| `analyze_document` | Analyze a document against a focused question |
+| `summarize_document` | Generate a focused document summary |
+| `answer_with_cloud_context` | Retrieve relevant context and generate a grounded answer |
+
+## 📁 Project Structure
+
+```text
+Hybrid-Medical-Agent/
+├── cloud_mcp_server/
+│   ├── server.py              # Cloud MCP tools and HTTP server
+│   ├── config.py               # Gemini, Qdrant and server settings
+│   ├── document_processor.py   # Document cleanup and chunking
+│   ├── embedding_service.py    # Embedding generation
+│   ├── gemini_service.py       # Gemini integration
+│   ├── qdrant_service.py       # Vector database integration
+│   └── requirements.txt
+├── hybrid_agent/
+│   ├── agent.py                # Parallel routing and response selection
+│   ├── api.py                  # FastAPI endpoints and UI hosting
+│   ├── api_models.py            # API schemas
+│   ├── config.py               # Agent configuration
+│   ├── pdf_utils.py             # PDF/text extraction helpers
+│   └── requirements.txt
+├── local_mcp_server/
+│   ├── server.py               # Local MCP tools
+│   ├── db.py                   # SQLite cache and full-text search
+│   ├── local_llm.py             # Optional local inference/fallback
+│   ├── config.py               # Local configuration
+│   └── requirements.txt
+├── ui/
+│   ├── index.html               # Web interface
+│   ├── app.js                   # Browser interactions
+│   └── style.css                # UI styling
+├── .env.example                 # Environment variable template
+├── requirements.txt             # Combined dependencies
+├── sample_patient_record.txt    # Synthetic/sample development data
+└── README.md
+```
+
+## 🛠️ Troubleshooting
+
+<details>
+<summary><strong>The UI opens, but cloud status is unhealthy</strong></summary>
+
+Confirm that the cloud MCP server is running in its own terminal and that `CLOUD_SERVER_URL` matches its address. Then verify `GEMINI_API_KEY`, `QDRANT_URL`, and (when required) `QDRANT_API_KEY` in your local `.env`. Use `/api/health` and the cloud health tool to see the reported status.
+</details>
+
+<details>
+<summary><strong>Cloud calls time out</strong></summary>
+
+Check network access and the Gemini/Qdrant configuration. The agent uses a configurable timeout; set `CLOUD_TIMEOUT_SECONDS` to adjust the wait. Local retrieval can still work if the document was cached successfully.
+</details>
+
+<details>
+<summary><strong>The local answer has little or no useful context</strong></summary>
+
+Upload/cache the document first, then ask a question using terms present in that document. The local path searches cached text; it cannot infer details that are not in the cache. A compatible local model is optional and does not replace document retrieval.
+</details>
+
+<details>
+<summary><strong>MCP dependency version errors</strong></summary>
+
+Re-create or update the environment using the repository's pinned dependencies: `pip install -r requirements.txt`. Avoid upgrading `mcp` independently without adapting and testing the server code.
+</details>
+
+<details>
+<summary><strong>PDF extraction fails</strong></summary>
+
+Confirm the file is a readable PDF or try a text-based copy. Image-only scans may need OCR support, which is not currently included in the documented default workflow.
+</details>
+
+## 🔐 Safety & Limitations
+
+- **Not a diagnostic system:** outputs are generated and may be inaccurate, incomplete, outdated, or misinterpreted.
+- **Human review is required:** confirm any clinical detail against the original record and trusted clinical references.
+- **Privacy matters:** medical records can contain highly sensitive personal information. Use synthetic/de-identified data for testing and verify applicable privacy, consent, retention, and security requirements before processing real data.
+- **Cloud processing sends data to external services:** document ingestion and cloud-grounded answers may transmit document text or derived representations to configured Gemini/Qdrant services. Do not assume data stays on-device.
+- **No guaranteed availability:** local fallback depends on the document being cached and relevant text being retrievable. Cloud features depend on external service configuration and availability.
+- **No formal clinical validation is implied:** this repository does not claim regulatory clearance, clinical validation, or suitability for autonomous care.
+
+## 🗺️ Roadmap Ideas
+
+- [ ] Automated tests for retrieval, routing, and failure paths
+- [ ] Configurable access control and authentication for the API
+- [ ] More robust citation/provenance display for generated answers
+- [ ] Observability and structured logging with sensitive-data redaction
+- [ ] Containerized deployment for the cloud MCP server
+- [ ] A documented evaluation set for retrieval quality and answer faithfulness
+
+## 🤝 Contributing
+
+Issues and pull requests are welcome. For meaningful changes:
+
+1. Open an issue to describe the bug or proposal.
+2. Keep credentials and patient data out of commits and logs.
+3. Test both healthy and degraded modes where practical.
+4. Update this README when setup, endpoints, or tool contracts change.
+
+## 📄 License
+
+No license file was present in the repository when this README was prepared. Unless a license is added, reuse and redistribution are not automatically granted; add a license file that matches your intended terms.
+
+---
+
+<div align="center">
+
+**Built to explore a practical question: what can a medical-document agent do when local speed and cloud context work together?**
+
+<sub>Made with Python · FastAPI · MCP · SQLite · Gemini · Qdrant</sub>
+
+</div>
