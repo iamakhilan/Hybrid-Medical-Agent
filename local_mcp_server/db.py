@@ -155,7 +155,7 @@ def search(query: str, top_k: int = config.DEFAULT_TOP_K) -> list[SearchResult]:
             """
             SELECT d.doc_id AS doc_id,
                    d.title AS title,
-                   substr(d.content, 1, 3000) AS snippet,
+                   snippet(documents_fts, 2, '[', ']', ' … ', 12) AS snippet,
                    bm25(documents_fts) AS rank
             FROM documents_fts
             JOIN documents d ON d.doc_id = documents_fts.doc_id
