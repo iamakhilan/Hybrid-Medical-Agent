@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloud-mcp
+  namespace: hybrid-medical-agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cloud-mcp
+  template:
+    metadata:
+      labels:
+        app: cloud-mcp
+    spec:
+      containers:
+        - name: cloud-mcp
+          image: hybrid-medical-agent:local
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-m", "cloud_mcp_server.server"]
+          ports:
+            - name: mcp
+              containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: hybrid-medical-agent-config
+            - secretRef:
+                name: hybrid-medical-agent-secrets
+          readinessProbe:
+            tcpSocket:
+              port: mcp
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: mcp
+            initialDelaySeconds: 20
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloud-mcp
+  namespace: hybrid-medical-agent
+spec:
+  type: ClusterIP
+  selector:
+    app: cloud-mcp
+  ports:
+    - name: mcp
+      port: 8000
+      targetPort: mcp
