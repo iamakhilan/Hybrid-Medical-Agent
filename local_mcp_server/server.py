@@ -66,6 +66,22 @@ def ask_local(question: str, top_k: int = config.DEFAULT_TOP_K) -> str:
     return local_llm.generate(question, chunks)
 
 
+@mcp.tool()
+def list_cached_documents(limit: int = 50) -> str:
+    """List cached document metadata as JSON for the agent/API layer."""
+    import json
+    return json.dumps(db.list_documents(limit=max(1, min(limit, 200))))
+
+
+@mcp.tool()
+def get_cached_document(doc_id: str) -> str:
+    """Fetch the full text of a cached document by id through the MCP boundary."""
+    doc = db.get_document(doc_id)
+    if doc is None:
+        raise ValueError(f"Cached document '{doc_id}' was not found.")
+    return doc["content"]
+
+
 @mcp.resource("cache://docs/{doc_id}")
 def get_cached_document(doc_id: str) -> str:
     """Return the full cached text of a document by id."""
