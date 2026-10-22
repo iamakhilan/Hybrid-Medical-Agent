@@ -119,7 +119,7 @@ async def ask(req: AskRequest):
     citations = []
     seen_citations = set()
     for hit in all_citations:
-        passage = re.sub(r"\\[/?(?:b|em|strong|mark)\\]", "", str(hit.get("text") or hit.get("snippet") or "")).strip()
+        passage = re.sub(r"\[/?(?:b|em|strong|mark)\]", "", str(hit.get("text") or hit.get("snippet") or "")).strip()
         doc_id = str(hit.get("doc_id") or "")
         title = str(hit.get("title") or doc_id or "Source document")
         if not passage or not doc_id:
@@ -129,7 +129,7 @@ async def ask(req: AskRequest):
             page_number = int(page_number)
         if not isinstance(page_number, int) or page_number < 1:
             page_number = None
-        key = (doc_id.casefold(), re.sub(r"\\W+", " ", passage).casefold()[:240])
+        key = (doc_id.casefold(), re.sub(r"\W+", " ", passage).casefold()[:240])
         if key in seen_citations:
             continue
         seen_citations.add(key)
@@ -158,7 +158,7 @@ async def ask(req: AskRequest):
             if not stored.ok:
                 continue
             marked = stored.text
-            page_matches = list(re.finditer(r"\\[\\[PAGE:(\\d+)\\]\\]", marked))
+            page_matches = list(re.finditer(r"\[\[PAGE:(\d+)\]\]", marked))
             segments = []
             if page_matches:
                 for i, marker in enumerate(page_matches):
@@ -172,7 +172,7 @@ async def ask(req: AskRequest):
                     line_terms = {w.lower() for w in re.findall(r"[A-Za-z0-9]+", line) if len(w) > 2}
                     overlap = len(terms & line_terms)
                     if overlap >= 2 and len(line) >= 25:
-                        key = (str(doc["doc_id"]).casefold(), re.sub(r"\\W+", " ", line).casefold()[:240])
+                        key = (str(doc["doc_id"]).casefold(), re.sub(r"\W+", " ", line).casefold()[:240])
                         if key in seen_citations:
                             continue
                         seen_citations.add(key)
