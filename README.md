@@ -5,11 +5,11 @@
 
 <div align="center">
 
-# 🩺 Hybrid Medical Agent
+# 🩺 EdgeAgentDoc
 
-### A local-first medical document assistant, powered by hybrid retrieval and AI.
+### Hybrid Medical Agent — edge–cloud collaborative document intelligence
 
-**Fast local recall. Deeper cloud context. One unified workflow.**
+**Fast local recall. Deeper cloud context. Graceful fallback.**
 
 <p>
   <a href="https://github.com/iamakhilan/Hybrid-Medical-Agent">
@@ -220,7 +220,7 @@ At minimum, the cloud-backed path uses:
 
 The local server has safe defaults. Cloud tools report configuration errors if Gemini or Qdrant settings are missing, and the hybrid agent can continue with local-only answers.
 
-> **Credential hygiene:** Never publish API keys in source control, screenshots, logs, or issue reports. If a key has ever been committed or shared, revoke it and create a replacement. Keep `.env` private; use `.env.example` only for non-secret configuration defaults.
+> **Credential hygiene:** Never publish API keys in source control, screenshots, logs, or issue reports. The repository's earlier environment template contained live-looking credentials. Removing them from the current file does not erase Git history. Treat any previously committed key as exposed: revoke/rotate it immediately and consider cleaning repository history before making the repository public. Keep `.env` private; use `.env.example` only for non-secret configuration defaults.
 
 ### 4. Start the application
 
@@ -267,6 +267,31 @@ python -m local_mcp_server.server
 ```
 
 It uses stdio, so it expects to be controlled by an MCP client rather than queried directly with a browser or `curl`.
+
+## 📊 Evaluation reported by the project
+
+The accompanying EdgeAgentDoc report evaluates the offline/local path and routing logic using a **synthetic patient record** and a set of 20 authored questions. These figures are from that report, not a claim of clinical validation or live cloud performance.
+
+| Experiment | Reported result | Interpretation |
+|---|---:|---|
+| Local retrieval returned a match | 20 / 20 questions | The local OR-query construction retrieved the record for each test question |
+| Local extractive answers contained the expected answer key | 15 / 20 (75%) | Retrieval found the record, but short snippets sometimes missed the needed value |
+| Local answer-path latency | 0.30 ms median; 0.54 ms p95 | In-process measurement; excludes real MCP transport overhead |
+| Strict-AND query ablation | 0 / 20 matches | Requiring every raw question term was too restrictive |
+| Cache scaling | 0.33 ms median at 1 document to 4.60 ms at 1,000 documents | Local search remained low-latency in the reported test |
+| Injected cloud-failure scenarios | 10 / 10 answered in each of five conditions | Routing/fallback was tested with stubbed transport, not a live cloud RAG evaluation |
+
+**Important caveats from the report:** the cloud Gemini + Qdrant RAG path has not been evaluated end-to-end against a labelled question set. The simulated 1.2-second cloud response is not a live measurement, and the routing tests used in-process stub sessions rather than real MCP transport. Treat these as prototype engineering measurements only.
+
+### Run the regression tests
+
+From the repository root with dependencies installed:
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+The tests cover cloud-answer preference, local-preview inclusion, fallback when cloud retrieval has no relevant document context, and combined failure reporting.
 
 ## 🖥️ Using the Web UI
 
@@ -413,7 +438,7 @@ Confirm the file is a readable PDF or try a text-based copy. Image-only scans ma
 
 ## 🗺️ Roadmap Ideas
 
-- [ ] Automated tests for retrieval, routing, and failure paths
+- [x] Initial regression tests for hybrid response selection and fallback
 - [ ] Configurable access control and authentication for the API
 - [ ] More robust citation/provenance display for generated answers
 - [ ] Observability and structured logging with sensitive-data redaction
