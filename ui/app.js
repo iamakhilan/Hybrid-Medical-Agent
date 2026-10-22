@@ -196,8 +196,8 @@ function addMessage(role, content, meta = null) {
 
     // Guard the UI against older backend processes that still return the
     // local retriever's document-preview dump as the "answer".
-    const retrievalDump = /^\\s*based on \\d+ cached local document/i.test(String(content || ''))
-      || /^\\s*based on \\d+ cached local document/i.test(String(content || '').replace(/\\(s\\)|s:/gi, ''));
+    const retrievalDump = /^\s*based on \d+ cached local document/i.test(String(content || ''))
+      || /^\s*based on \d+ cached local document/i.test(String(content || '').replace(/\(s\)|s:/gi, ''));
     const displayContent = retrievalDump
       ? 'The search returned document-preview snippets instead of a reliable answer. Check the supporting evidence below; if no passages are listed, restart the app with the latest backend code and try again.'
       : content;
@@ -207,7 +207,7 @@ function addMessage(role, content, meta = null) {
     const citations = rawCitations.filter(citation => {
       const passage = String(citation.passage || '').trim();
       if (!passage || !citation.doc_id) return false;
-      const key = String(citation.doc_id).toLowerCase() + '|' + passage.toLowerCase().replace(/\\s+/g, ' ').slice(0, 220);
+      const key = String(citation.doc_id).toLowerCase() + '|' + passage.toLowerCase().replace(/\s+/g, ' ').slice(0, 220);
       if (citationSeen.has(key)) return false;
       citationSeen.add(key);
       return true;
