@@ -210,7 +210,7 @@ aws ecs create-express-gateway-service \
   --infrastructure-role-arn "$INFRA_ROLE_ARN" \
   --health-check-path "/api/health" \
   --scaling-target '{"minTaskCount":1,"maxTaskCount":1}' \
-  --monitor-resources DEPLOYMENT \\
+  --monitor-resources DEPLOYMENT \
   --monitor-mode TEXT-ONLY
 
 echo
