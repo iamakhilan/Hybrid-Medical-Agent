@@ -153,9 +153,9 @@ TASK_DEF_JSON="$(jq -n \
       portMappings: [{containerPort: 7860, protocol: "tcp", name: "http"}],
       environment: [
         {name:"GEMINI_MODEL",value:"gemini-2.5-flash"},
-        {name:"GEMINI_EMBEDDING_MODEL",value:"text-embedding-004"},
+        {name:"GEMINI_EMBEDDING_MODEL",value:"gemini-embedding-001"},
         {name:"GEMINI_EMBEDDING_DIM",value:"768"},
-        {name:"QDRANT_COLLECTION",value:"medical_documents"},
+        {name:"QDRANT_COLLECTION",value:"medical_documents_gemini001"},
         {name:"CLOUD_MCP_HOST",value:"127.0.0.1"},
         {name:"CLOUD_MCP_PORT",value:"8000"},
         {name:"CLOUD_SERVER_URL",value:"http://127.0.0.1:8000/mcp"},
