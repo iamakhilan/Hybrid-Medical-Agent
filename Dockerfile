@@ -15,13 +15,15 @@ COPY local_mcp_server ./local_mcp_server
 COPY cloud_mcp_server ./cloud_mcp_server
 COPY ui ./ui
 COPY sample_patient_record.txt ./sample_patient_record.txt
+COPY deploy/aws/entrypoint.sh ./deploy/aws/entrypoint.sh
 
 # Persistent state is mounted at /data by Compose/Kubernetes.
 RUN useradd --create-home --uid 10001 appuser \
     && mkdir -p /data \
+    && chmod +x /app/deploy/aws/entrypoint.sh \
     && chown -R appuser:appuser /app /data
 
 USER appuser
 
 EXPOSE 7860 8000
-CMD ["python", "-m", "hybrid_agent.api"]
+CMD ["/app/deploy/aws/entrypoint.sh"]
