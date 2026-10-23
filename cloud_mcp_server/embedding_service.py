@@ -30,10 +30,8 @@ def _get_client():
         )
     from google import genai
 
-    # text-embedding-004 is only available on the stable v1 API.
-    # The SDK defaults to v1beta, which returns 404 for this model,
-    # so we override it here. This client is only used for embeddings;
-    # the generation client in gemini_service keeps v1beta.
+    # Use the supported Gemini embedding API. The model and output dimension
+    # are configurable so vectors stay compatible with the Qdrant collection.
     _client = genai.Client(api_key=config.GEMINI_API_KEY)
     return _client
 
@@ -51,9 +49,14 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
     if not model_name.startswith("models/"):
         model_name = f"models/{model_name}"
 
+    from google.genai import types
+
     response = client.models.embed_content(
         model=model_name,
         contents=texts,
+        config=types.EmbedContentConfig(
+            output_dimensionality=config.GEMINI_EMBEDDING_DIM
+        ),
     )
     return [e.values for e in response.embeddings]
 
