@@ -7,7 +7,7 @@ data:
   GEMINI_MODEL: "gemini-2.5-flash"
   GEMINI_EMBEDDING_MODEL: "gemini-embedding-001"
   GEMINI_EMBEDDING_DIM: "768"
-  QDRANT_COLLECTION: "medical_documents"
+  QDRANT_COLLECTION: "medical_documents_gemini001"
   CLOUD_MCP_HOST: "0.0.0.0"
   CLOUD_MCP_PORT: "8000"
   CLOUD_SERVER_URL: "http://cloud-mcp:8000/mcp"
