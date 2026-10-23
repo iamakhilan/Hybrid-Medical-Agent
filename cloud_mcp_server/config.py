@@ -28,7 +28,7 @@ GEMINI_EMBEDDING_DIM = int(os.environ.get("GEMINI_EMBEDDING_DIM", "768"))
 # --- Qdrant -------------------------------------------------------------
 QDRANT_URL = os.environ.get("QDRANT_URL", "")
 QDRANT_API_KEY = os.environ.get("QDRANT_API_KEY", "")
-QDRANT_COLLECTION = os.environ.get("QDRANT_COLLECTION", "medical_documents")
+QDRANT_COLLECTION = os.environ.get("QDRANT_COLLECTION", "medical_documents_gemini001")
 
 # --- Chunking -------------------------------------------------------------
 CHUNK_SIZE_WORDS = int(os.environ.get("CHUNK_SIZE_WORDS", "220"))
