@@ -50,12 +50,15 @@ def _generate(prompt: str, system_instruction: str | None = None) -> str:
     config_kwargs = {}
     if system_instruction:
         config_kwargs["system_instruction"] = system_instruction
-    response = client.models.generate_content(
-        model=config.GEMINI_MODEL,
-        contents=prompt,
-        config=types.GenerateContentConfig(**config_kwargs) if config_kwargs else None,
-    )
-    return (response.text or "").strip()
+    try:
+        response = client.models.generate_content(
+            model=config.GEMINI_MODEL,
+            contents=prompt,
+            config=types.GenerateContentConfig(**config_kwargs) if config_kwargs else None,
+        )
+        return (response.text or "").strip()
+    except Exception as exc:
+        raise GeminiServiceError(f"Gemini API generation failed: {exc}")
 
 
 def extract_document(text: str, title: str = "") -> ExtractionResult:

@@ -140,7 +140,10 @@ def answer_with_cloud_context(question: str, top_k: int = config.DEFAULT_TOP_K) 
         # agent is the only MCP client and chooses the response tier.
         return "No relevant documents found in the cloud vector store. Ingest the document into the cloud store or use the local cache result."
 
-    return gemini_service.reason_over_context(question, context_chunks)
+    try:
+        return gemini_service.reason_over_context(question, context_chunks)
+    except Exception as exc:
+        return f"Cloud reasoning error: {exc}"
 
 
 

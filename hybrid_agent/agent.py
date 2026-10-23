@@ -191,6 +191,12 @@ class HybridAgent:
                 "no patient data provided",
                 "need the following details",
                 "provide the following information",
+                "cloud reasoning error",
+                "gemini api generation failed",
+                "gemini api key is not set",
+                "permission_denied",
+                "reported as leaked",
+                "403 permission_denied",
             ]
         )
 

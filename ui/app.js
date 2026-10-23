@@ -36,8 +36,13 @@ function pulseTraceSvg(fast) {
 // plain text on purpose, to keep this simple and safe.
 function renderMarkdownLite(str) {
   let html = escHtml(str);
-  html = html.replace(/^\*(?!\*)\s+/gm, '• ');            // "* item"  -> "• item"
+  html = html.replace(/^###\s+(.+)$/gm, '<h4 class="md-header">$1</h4>');
+  html = html.replace(/^##\s+(.+)$/gm, '<h3 class="md-header">$1</h3>');
+  html = html.replace(/^#\s+(.+)$/gm, '<h2 class="md-header">$1</h2>');
+  html = html.replace(/^---+$/gm, '<hr class="md-divider" />');
+  html = html.replace(/^[-*](?!\*)\s+/gm, '• ');                   // "* item" or "- item" -> "• item"
   html = html.replace(/\*\*([^*]+?)\*\*/g, '<strong>$1</strong>'); // **bold** -> <strong>
+  html = html.replace(/\*([^*]+?)\*/g, '<em>$1</em>');             // *italic* -> <em>
   return html;
 }
 

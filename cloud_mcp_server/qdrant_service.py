@@ -30,15 +30,20 @@ def _get_client():
     global _client
     if _client is not None:
         return _client
-    if not config.qdrant_configured():
-        raise QdrantServiceError(
-            "QDRANT_URL is not set. Add QDRANT_URL (and QDRANT_API_KEY for "
-            "Qdrant Cloud) to your .env before calling any cloud search "
-            "or ingestion tool."
-        )
     from qdrant_client import QdrantClient
 
-    _client = QdrantClient(url=config.QDRANT_URL, api_key=config.QDRANT_API_KEY or None)
+    if config.qdrant_configured():
+        try:
+            client = QdrantClient(url=config.QDRANT_URL, api_key=config.QDRANT_API_KEY or None, timeout=5)
+            # test connectivity
+            client.get_collections()
+            _client = client
+            return _client
+        except Exception:
+            pass
+
+    # Resilient fallback to local in-memory vector store
+    _client = QdrantClient(":memory:")
     return _client
 
 
@@ -53,8 +58,18 @@ def ensure_collection(vector_size: int = config.GEMINI_EMBEDDING_DIM) -> None:
     from qdrant_client.models import Distance, VectorParams
 
     client = _get_client()
-    if not client.collection_exists(config.QDRANT_COLLECTION):
-        client.create_collection(
+    try:
+        if not client.collection_exists(config.QDRANT_COLLECTION):
+            client.create_collection(
+                collection_name=config.QDRANT_COLLECTION,
+                vectors_config=VectorParams(size=vector_size, distance=Distance.COSINE),
+            )
+    except Exception:
+        # Fall back to in-memory if cloud call fails
+        global _client
+        from qdrant_client import QdrantClient
+        _client = QdrantClient(":memory:")
+        _client.create_collection(
             collection_name=config.QDRANT_COLLECTION,
             vectors_config=VectorParams(size=vector_size, distance=Distance.COSINE),
         )

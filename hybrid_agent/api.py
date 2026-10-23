@@ -152,13 +152,17 @@ async def ask(req: AskRequest):
         if ("synthetic patient test record" in normalized and len(words) < 9) or normalized.endswith(".pdf"):
             return False
         overlap = len(question_terms & words)
-        clinical_terms = {"amlodipine", "allergy", "allergies", "rash", "dose", "doses",
-                          "medication", "medications", "mg", "daily", "once"}
-        asks_medication = bool(question_terms & {"amlodipine", "allergy", "allergies", "rash",
-                                                   "dose", "doses", "medication", "medications"})
-        # For medication/allergy questions require a direct clinical term in
-        # the passage, not a match on filename words such as "synthetic" or "test".
-        clinical_match = bool(words & clinical_terms)
+        medication_triggers = {
+            "medication", "medications", "medicine", "drug", "drugs", "dose", "doses",
+            "taking", "prescribed", "amlodipine", "metformin", "atorvastatin", "ramipril", "statin", "insulin",
+        }
+        asks_medication = bool(question_terms & medication_triggers)
+        medication_content_terms = {
+            "mg", "daily", "once", "twice", "tablet", "capsule", "od", "bd", "tid", "po",
+            "dose", "medication", "prescribed", "amlodipine", "metformin", "atorvastatin",
+            "ramipril", "insulin", "allergy", "rash",
+        }
+        clinical_match = bool(words & medication_content_terms)
         return overlap >= 1 and (clinical_match if asks_medication else True)
     for hit in all_citations:
         passage = re.sub(r"\[/?(?:b|em|strong|mark)\]", "", str(hit.get("text") or hit.get("snippet") or "")).strip()
@@ -188,8 +192,6 @@ async def ask(req: AskRequest):
     # overlap, rather than requiring two terms on the same line (which fails
     # for short medication/lab entries). If the question names a document,
     # prioritize that document. Never fabricate a citation or page number.
-    # If search adapters returned only titles or generic previews, discard
-    # them and run the local page-aware fallback instead.
     if not citations:
         stop_words = {
             "what", "when", "where", "which", "with", "from", "that", "this", "each",
@@ -238,58 +240,18 @@ async def ask(req: AskRequest):
                               "chunk_index": -1, "passage": passage, "score": float(score)})
             if len(citations) >= req.top_k:
                 break
-    # The local extractive fallback can return a raw "Based on N cached
-    # documents" snippet list instead of answering the question. Don't expose
-    # that retrieval debug text as if it were a clinical answer.
+
     answer_text = response.merged_text.strip()
-    looks_like_retrieval_dump = (
-        re.search(r"(?i)^based on \d+ cached local document", answer_text) is not None
-        or ("cached local document" in answer_text.lower()
-            and re.search(r"(?m)^-\s*\[", answer_text) is not None)
-    )
-    if looks_like_retrieval_dump:
+    if not answer_text:
         if citations:
-            medication_passages = []
-            seen_answer_passages = set()
-            for item in citations:
-                passage = re.sub(r"\\s+", " ", item["passage"]).strip()
-                lowered = passage.lower()
-                # The synthetic PDF contains a section that describes its own
-                # expected test signals. It is instructional metadata, not a
-                # patient encounter, so do not present it as clinical evidence.
-                if any(marker in lowered for marker in (
-                    "expected test signals", "not clinical conclusions",
-                    "suggested test questions", "end of synthetic test record",
-                    "for testing document ingestion", "all patient details",
-                )):
-                    continue
-                if not re.search(r"(?i)amlodipine|allerg|rash", passage):
-                    continue
-                key = re.sub(r"\\W+", " ", lowered).strip()
-                if key in seen_answer_passages:
-                    continue
-                seen_answer_passages.add(key)
-                medication_passages.append(passage)
-            if medication_passages:
-                answer_text = (
-                    "The record contains these medication/allergy excerpts:\n\n"
-                    + "\n".join(f"- {passage}" for passage in medication_passages[:req.top_k])
-                    + "\n\nAcross the dated entries, amlodipine is listed as 5 mg once daily "
-                    "on 2026-08-04, 10 mg once daily on 2026-09-15, and 5 mg daily on 2026-10-18. "
-                    "The 2026-10-18 note records a possible rash and says to verify the association. "
-                    "These records do not establish which dose is correct or determine treatment; "
-                    "a clinician should reconcile the original records."
-                )
-            else:
-                answer_text = (
-                    "I found potentially relevant passages in the cached records, but none clearly supports "
-                    "a medication or allergy conclusion. Review the evidence cards and original document."
-                )
+            answer_text = (
+                "I found relevant evidence in the cached clinical records. "
+                "Review the supporting evidence below for details."
+            )
         else:
             answer_text = (
-                "I couldn't retrieve a usable supporting passage for this question. "
-                "The cached-document search returned only document previews, so this answer "
-                "is unverified. Try opening the document in Documents or re-uploading it."
+                "No clinical answer could be retrieved for this question from the available records. "
+                "Try checking the document library or rephrasing your question."
             )
 
     return AskResponse(
